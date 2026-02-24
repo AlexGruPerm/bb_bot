@@ -1,0 +1,77 @@
+services:
+  postgres_db:
+    container_name: pg_container
+    build:
+      context: ./pg
+      dockerfile: Dockerfile
+    image: postgres:${PG_VERS}
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      BB_DB_NAME: ${BB_DB_NAME}
+      BB_USER_LOGIN: ${BB_USER_LOGIN}
+      BB_USER_PASSWORD: ${BB_USER_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${BB_USER_LOGIN} -d ${BB_DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - type: bind
+        source: ./pg/initdb
+        target: /docker-entrypoint-initdb.d
+      - type: bind
+        source: ./pg/pg_hba.conf
+        target: /etc/postgresql/pg_hba.conf
+        read_only: true
+    command:
+      - postgres
+      - -c
+      - shared_preload_libraries=pg_cron
+      - -c
+      - cron.database_name=${BB_DB_NAME}
+      - -c
+      - cron.host=""
+    logging:
+        driver: json-file
+        options:
+            max-size: "10m"
+            max-file: "5"
+    networks:
+      appnet:
+        ipv4_address: 172.30.0.10
+  gather:
+    container_name: gather
+    build: ./gather
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      appnet:
+        ipv4_address: 172.30.0.11
+  trader:
+    container_name: trader
+    build: ./trader
+    ports:
+      - "8443:8443"
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      appnet:
+        ipv4_address: 172.30.0.12
+
+volumes:
+  pg_data:
+  
+networks:
+  appnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/16
+          gateway: 172.30.0.1
