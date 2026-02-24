@@ -143,18 +143,15 @@ Examples of advices in telegram chat:
                                       from data.wallet_balance wb)
      order by wbc.equity desc
    ```   
-   
-   6) Common log. Some errors logged in table. It can be error related with empty data from ByBit, or error with PingPong that  
-      used for keeping webSocket chanel. Socked reopened automatically (when internet or net was broken for some time).   
+  
+6) Common log. Some errors logged in table. It can be error related with empty data from ByBit, or error with PingPong that  
+      used for keeping webSocket chanel. Socked reopened automatically (when internet or net was broken for some time).  
+  
 ```sql     
     select * 
       from data.common_log cl
      order by cl.id desc 
    ```
 
-
-   
-
-
 Please send all question to:
-[bb_bot@bk.ru](bb_bot@bk.ru) or [telegram](https://t.me/AlexGruPerm) 
+[bb_bot@bk.ru](bb_bot@bk.ru) or [telegram](https://t.me/AlexGruPerm)   
