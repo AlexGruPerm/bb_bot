@@ -1,13 +1,13 @@
 # bb_bot - bot for help trading on ByBit.
 
-## 1. [Common description](#1-common-description)
-## 2. [Technical description](#2-technical-description)
-## 3. [Language and libraries](#3-language-and-libraries)
-## 4. [Installation](#4-installation)
-## 5. [Configuration](#5-configuration)
-## 6. [Telegram bot description](#6-telegram-bot-description)
-## 7. [Examples of advices](#7-examples-of-advices)
-## 8. [Recommendations](#8-recommendations)
+## 1. [Common description](#1-common-description-1)
+## 2. [Technical description](#2-technical-description-1)
+## 3. [Language and libraries](#3-language-and-libraries-1)
+## 4. [Installation](#4-installation-1)
+## 5. [Configuration](#5-configuration-1)
+## 6. [Telegram bot description](#6-telegram-bot-description-1)
+## 7. [Examples of advices](#7-examples-of-advices-1)
+## 8. [Recommendations](#8-recommendations-1)
 
 ### 1. Common Description
 
@@ -15,7 +15,7 @@ This bat is a helper for trading on ByBit. It gathers data from ByBit API (near 
 Sometimes (in periodical basis) it runs check of advisor and if new advice exists bot send advice to user (to you) in telegram chat.
 You have chat with telegram bot, and it is personal chat without anybody else.
 When you receive new advice you can make decision to buy or sell some crypto or make deep analysis.
-You can see [examples of advices](#5-examples-of-advices).
+You can see [examples of advices](#7-examples-of-advices-1).
 
 ### 2. Technical description
 Technically bot is a couple of applications (fat jars):
@@ -106,20 +106,20 @@ Examples of advices in telegram chat:
 
 ## 8. Recommendations
 1) In DBeaver or any IDE for Postgres set initialization query: SET TIME ZONE 'UTC';  
-  <br>
+  
 2) Each advisor is a plpgsql function with same interface data.function_name(p_id_symbol integer, p_start_ts bigint)  
    (look at function data.bounce_turn it work only for M15 and some parameters fixed inside) you can add as many advisors as you want. 
    Just register it in table data.advice_meta and make relation with intervals in data.ref_advice_meta_interval   
-  <br>
+  
 3) Simple ER - diagram for database:  
-   ![er](images/er_db.png)  
-   <br>
+   ![er](images/er_db.png)   
+     
 4) Candles saved in table "data.candle"  
-   Current building candles (with webSocket data)
+   Current building candles (with webSocket data)  
    ```sql 
     select * from data.candle c where c.end_ts is null
-   ```
-   Internal content on each candle. You can see how internal data growing in real time for one last candle:
+   ```  
+   Internal content on each candle. You can see how internal data growing in real time for one last candle:  
     ```sql 
     select *
       from data.kline k
@@ -129,7 +129,7 @@ Examples of advices in telegram chat:
                              and c.id_symbol  = 4   /* TONUSDT */
                              and c.c_interval = '1' /* 1 minute */)
     ```  
-   <br>
+     
 5) Wallet balance (common and divided by crypto coins)  
    ```sql 
     /* updated each 5 seconds.  */
@@ -142,10 +142,10 @@ Examples of advices in telegram chat:
      where wbc.id_wallet_balance = (select max(wb.id)
                                       from data.wallet_balance wb)
      order by wbc.equity desc
-   ```  
-   <br>
+   ```   
+   
    6) Common log. Some errors logged in table. It can be error related with empty data from ByBit, or error with PingPong that  
-      used for keeping webSocket chanel. Socked reopened automatically (when internet or net was broken for some time). 
+      used for keeping webSocket chanel. Socked reopened automatically (when internet or net was broken for some time).   
 ```sql     
     select * 
       from data.common_log cl
