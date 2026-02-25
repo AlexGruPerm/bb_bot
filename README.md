@@ -8,7 +8,9 @@
 ## 6. [Telegram bot description](#6-telegram-bot-description-1)
 ## 7. [Examples of advices](#7-examples-of-advices-1)
 ## 8. [Recommendations](#8-recommendations-1)
+## 9. [Explanation of volatility](#9-explanation-of-volatility-1)
 
+  
 ### 1. Common Description
 
 This bat is a helper for trading on ByBit. It gathers data from ByBit API (near real time), save it into your Postgres database. 
@@ -153,5 +155,26 @@ Examples of advices in telegram chat:
      order by cl.id desc 
    ```
 
-Please send all question to:
-[bb_bot@bk.ru](bb_bot@bk.ru) or [telegram](https://t.me/AlexGruPerm)   
+## 9. Explanation of volatility
+When you execute bot (telegram) command /getViewDeep 15 30 (For example. It means that you want to get ViewDeep information  
+for M15 and 30 candles)
+ You can see response like this (it's real and made in 25 February 2026)  
+
+![volatility](images/volat_25_02_2026.png)
+
+Last column "Simple volatility" shows how much the price changes.  
+Maximum is 18.20 for DOT/USDT  
+Middle values for BTC/USDT and TON/USDT  
+Lowest value is 0.74 for TRX/USDT
+
+There are graphics for these coins, you can compare price changing visually. 
+
+![vol_dot](images/dot_volat.png)  
+
+![vol_btc](images/btc_volat.png)  
+
+![vol_ton](images/ton_volat.png)  
+
+![vol_trx](images/trx_volat.png)
+
+If you have questions you can sak me: [bb_bot@bk.ru](bb_bot@bk.ru) or in [telegram](https://t.me/AlexGruPerm)   
