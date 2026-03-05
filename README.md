@@ -1,5 +1,8 @@
 # bb_bot - bot for help trading on ByBit.
 
+This project is for educational purposes. However, it can also be used in real trading.  
+It collects data from the ByBit exchange, stores it in a database, analyzes it, and provides trading advice via a Telegram bot.
+
 ## 1. [Common description](#1-common-description-1)
 ## 2. [Technical description](#2-technical-description-1)
 ## 3. [Language and libraries](#3-language-and-libraries-1)

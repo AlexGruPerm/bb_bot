@@ -275,7 +275,7 @@ select s.id,i.id
   from data.symbol s
  cross join data.interval i      
  where s.is_enabled = true and 
-       i.code in ('1','5','15','60')   
+       i.code in ('1','5','15','30','60')
  order by 1,2;      
 
 -- for /v5/account/wallet-balance (common)
@@ -1417,11 +1417,6 @@ END;
 $procedure$
 ; 
 
---SELECT cron.schedule('order_to_close', '10 seconds', 'CALL data.order_to_close()');
 
--- todo: make recomendation only in actual data and no was recom. in last seconds - check closed recom. by orderId
--- ----------- SELECT cron.schedule('mod_1', '30 seconds', 'CALL data.mod_1()');
---UPDATE cron.job SET nodename = '';  
-select * from cron.job j where j.jobname = 'order_to_close';
 
 EOSQL
