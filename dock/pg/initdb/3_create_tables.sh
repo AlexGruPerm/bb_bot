@@ -398,6 +398,7 @@ create table data.advice_meta(
 comment on column data.advice_meta.proc is 'Name of procedure for this advices - fixed API (id_symbol, start_ts) :text - buy, sell, null';
 
 insert into data.advice_meta(advice_description,proc) values('We are looking for a bar with high volume, after which the price went to the side of the bar.','bounce_turn');
+insert into data.advice_meta(advice_description,proc) values('We observe when the price suddenly breaks out of the channel.','exit_from_channel');
 
 create table data.ref_advice_meta_interval(
  id_advice_meta int4 not null constraint fk_ref_advice_meta_interval_am references data.advice_meta(id),
@@ -405,8 +406,8 @@ create table data.ref_advice_meta_interval(
  constraint uk_ref_advice_meta_interval unique(id_advice_meta,id_interval)
 );
 
-insert into  data.ref_advice_meta_interval(id_advice_meta,id_interval) values(1,4); 
-insert into  data.ref_advice_meta_interval(id_advice_meta,id_interval) values(1,5); 
+insert into  data.ref_advice_meta_interval(id_advice_meta,id_interval) values(1,4);
+insert into  data.ref_advice_meta_interval(id_advice_meta,id_interval) values(2,4);
 
 CREATE TABLE data.advice (
 	id serial4 NOT NULL,
@@ -689,6 +690,103 @@ with dataset_c as (
          and fnl.max_vol > mvl.first_maxvol_avg_volume
          and mvb.bar_type  in ('up','down')
          and volume_koeff.is_symbol = p_id_symbol;
+$function$
+;
+
+CREATE OR REPLACE FUNCTION data.exit_from_channel(p_id_symbol integer, p_start_ts bigint)
+ RETURNS text
+ LANGUAGE sql
+AS $function$
+with src as (
+				select c.*,
+				       rank() over(order by abs(c.o-c.c) desc)      as rnk_h,
+				       abs(c.o-c.c) as abs_h,
+				       rank() over(order by c.v desc)               as rnk_v,
+				       row_number() over( order by c.start_ts desc) as rn
+				 from(
+						select ci.*
+						  from data.candle ci
+						 where ci.id_symbol = p_id_symbol and
+						       ci.c_interval = '15' and
+						       ci.start_ts is not null and
+						       ci.start_ts <= p_start_ts
+						 order by ci.start_ts desc limit 210
+					 ) c
+				 order by c.start_ts desc
+		    ),
+	src_checked as (select exists (select 1
+					                 from src si
+					                where si.rnk_h = 1 and si.rnk_v = 1 and si.rn between 3 and 6) as succ
+				   ),
+	src_channel as (
+				   select min(s.l)                 as min_price,
+				          max(s.h)                 as max_price,
+				          abs(max(s.h) - min(s.l)) as ch_height,
+				          avg(v)                   as avg_v
+				     from src s
+				    where exists(select 1 from src_checked where succ) and
+				          s.rn >= 7
+				   ),
+	src_last   as (
+				   select s.*
+				     from src s
+				    where exists(select 1 from src_checked where succ) and
+				          s.rn = 1
+				   ),
+	src_pre_last as (
+				   select s.*
+				     from src s
+				    where exists(select 1 from src_checked where succ) and
+				          s.rn = 2
+				   ),
+	src_main_bar as (
+				     select s.*
+				       from src s
+				      where exists(select 1 from src_checked where succ) and
+				          s.rnk_h = 1
+				    ),
+	conds as (
+				select --compare channel height and MAIN bar
+				       (case
+				         when b.abs_h between c.ch_height * 0.7 and c.ch_height * 2
+				         then 1
+				         else 0
+				        end) as main_bar_h_checked,
+				       -- compare directions of main bar and last bar
+				       (case
+				          when b.o < b.c and l.o > l.c or
+				               b.o > b.c and l.o < l.c
+				          then 1
+				          else 0
+				        end) as comp_main_last,
+				        -- check size prelast and last abrs
+				        (case
+				          when  l.abs_h < b.abs_h/6 and
+				               pl.abs_h < b.abs_h/6
+				          then 1
+				          else 0
+				         end) as check_last_size,
+				         --check avg volume and main volume
+				         (case
+				            when b.v > c.avg_v*8
+				            then 1
+				            else 0
+				          end) as check_vol
+				  from src_main_bar b,
+				       src_pre_last pl,
+				       src_last     l,
+				       src_channel  c
+		     )
+      select (case
+               when b.o < b.c then 'buy'
+               else 'sell'
+              end) as order_advise
+        from conds c,
+             src_main_bar b
+       where c.main_bar_h_checked=1 and
+             c.comp_main_last=1 and
+             c.check_last_size=1 and
+             c.check_vol=1;
 $function$
 ;
 

@@ -40,7 +40,7 @@ trait TelegramCommands {
     putToQueue(GetViewDeep("15", 10)) *> ZIO.unit
   }
 
-  onCommand("/getViewDeep") { implicit msg =>
+  onCommand("/getViewDeep" | "/getviewdeep" | "/gvd") { implicit msg =>
     withArgs {
       case Seq(param1, param2) =>
         val interval: String = param1

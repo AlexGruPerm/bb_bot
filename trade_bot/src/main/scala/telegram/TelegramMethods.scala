@@ -107,6 +107,7 @@ trait TelegramMethods {
                    |/getCommonBalance    - Only total balance
                    |/getSymbolsBalance   - Balance by symbols
                    |/getViewDeep X Y     - where X - interval in minutes, Y - deep bars
+                   |/gvd X Y             - alias for getViewDeep
                    |/getViewDeep_15_10   - Fixed parameters: 15 minutes, 10 bars
                    |
                    |/help - help page
