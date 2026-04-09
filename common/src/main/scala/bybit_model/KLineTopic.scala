@@ -13,7 +13,7 @@ object KLineTopic {
   def parse(s: String, symbol: Symbol): KLineTopic =
     s match {
       case Pat(interval, _) => KLineTopic(symbol, "kline", interval)
-      case _                         => throw new Exception(s"Invalid KLine topic: $s")
+      case _                => throw new Exception(s"Invalid KLine topic: $s")
     }
 
 }

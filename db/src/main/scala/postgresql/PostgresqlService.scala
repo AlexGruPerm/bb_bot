@@ -1,13 +1,58 @@
 package postgresql
 
-import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
+import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
 import service.DatabaseService
-import bybit_model.{Advice, AdviceInsert, AdviceMeta, AdviceToUser, ApiRespWalletBalance, CandleInsert, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, InsertedCandle, Interval, KLine, KLineInsert, KLineTopic, LogLevel, OpenInterestInsert, OpenInterestResConverter, OpenInterestResult, OrderBookResConverter, OrderBookResult, OrderBookResultConverter, OrderBookResultInsert, OrderBookSnapshot, OrderBookSnapshotInsert, OrderItemInfo, OrderItemInfoInsert, RefAdviceMetaInterval, RefSymbolsIntervals, ReglamentLog, ReglamentRow, Symbol, SymbolAdviceProc, SymbolShort, SymbolSource, SymbolsAdviceProc, SymbolsBalance, TradeAdvice, TradeAdviceOrder, TradeAdviceSelect, TradeAdviceUpdate, ViewDeepLine, WalletBalanceCoinInsert, WalletBalanceInsert}
-import io.getquill.{Delete, EntityQuery, Insert, Ord, Query, Quoted, Update}
-import zio.{Ref, ZIO, durationInt}
+import bybit_model.{
+  Advice,
+  AdviceInsert,
+  AdviceMeta,
+  AdviceToUser,
+  ApiRespWalletBalance,
+  CandleInsert,
+  Coin,
+  CommonWalletBalance,
+  CurrentCandle,
+  ErrorLog,
+  InsertedCandle,
+  Interval,
+  KLine,
+  KLineInsert,
+  KLineTopic,
+  LogLevel,
+  OpenInterestInsert,
+  OpenInterestResConverter,
+  OpenInterestResult,
+  OrderBookResConverter,
+  OrderBookResult,
+  OrderBookResultConverter,
+  OrderBookResultInsert,
+  OrderBookSnapshot,
+  OrderBookSnapshotInsert,
+  OrderItemInfo,
+  OrderItemInfoInsert,
+  RefAdviceMetaInterval,
+  RefSymbolsIntervals,
+  ReglamentLog,
+  ReglamentRow,
+  Symbol,
+  SymbolAdviceProc,
+  SymbolShort,
+  SymbolSource,
+  SymbolsAdviceProc,
+  SymbolsBalance,
+  TradeAdvice,
+  TradeAdviceOrder,
+  TradeAdviceSelect,
+  TradeAdviceUpdate,
+  ViewDeepLine,
+  WalletBalanceCoinInsert,
+  WalletBalanceInsert
+}
+import io.getquill.{ Delete, EntityQuery, Insert, Ord, Query, Quoted, Update }
+import zio.{ durationInt, Ref, ZIO }
 import zio._
 
-import java.sql.{SQLException, Timestamp}
+import java.sql.{ SQLException, Timestamp }
 import java.time.Instant
 import java.util.concurrent.TimeoutException
 import javax.sql.DataSource
@@ -509,7 +554,7 @@ final class PostgresqlService extends DatabaseService {
       )
     )
   } yield ()
-  */
+   */
 
   override def saveOrderHistory(order: OrderItemInfoInsert): ZIO[DataSource, SQLException, Unit] = for {
     _ <- run(
@@ -625,6 +670,20 @@ final class PostgresqlService extends DatabaseService {
         run(deleteQ)
     }
 
+    def deleteOI(intVal: Int): ZIO[DataSource, SQLException, Long] = {
+      val cutoff  = quote {
+        sql"""(select max(ts_bybit) - (${lift(intVal)}::bigint * 24 * 60 * 60 * 1000)
+                   from data.open_interest)""".as[Long]
+      }
+      val deleteQ = quote {
+        querySchema[OpenInterestInsert]("data.open_interest")
+          .filter(wb => wb.ts_bybit < cutoff)
+          .delete
+      }
+      ZIO.logInfo(s"DB - OpenInterestInsert for intVal = $intVal") *>
+        run(deleteQ)
+    }
+
     for {
       // reglamentParams contains just one row by input code for executeReglamentCleanup
       _            <- ZIO.logInfo(s"executeReglamentCleanup code = $code")
@@ -645,6 +704,7 @@ final class PostgresqlService extends DatabaseService {
         case "keep_wb_days"     => deleteWalletBalance(regParameter.int_val)
         case "keep_obs_days"    => deleteOrderBookSnapshot(regParameter.int_val)
         case "keep_candle_days" => deleteCandle(regParameter.int_val)
+        case "keep_oi_days"     => deleteOI(regParameter.int_val)
         case _                  => ZIO.succeed(0L)
       }
       _           <- ZIO.logInfo(s"deletedRows = $deletedRows")
@@ -686,8 +746,8 @@ final class PostgresqlService extends DatabaseService {
         i   <- intervalSchema.join(_.id == rmi.id_interval)
         vs  <- symbolSchema
         if i.mins.isDefined && vs.is_enabled && vs.is_tradable
-      } yield i.mins.getOrElse(0)
-        ).distinct}
+      } yield i.mins.getOrElse(0)).distinct
+    }
     run(q)
   }
 

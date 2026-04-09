@@ -381,6 +381,7 @@ create table data.reglament(
 insert into data.reglament(prop,code,int_val) values('Keep wallet_balance days','keep_wb_days',10);
 insert into data.reglament(prop,code,int_val) values('Keep orderorder_book_snapshot days','keep_obs_days',10);
 insert into data.reglament(prop,code,int_val) values('Keep candle days','keep_candle_days',10);
+insert into data.reglament(prop,code,int_val) values('Keep open interset days', 'keep_oi_days', 10);
 
 create table data.reglament_log(
  id           bigserial primary key,

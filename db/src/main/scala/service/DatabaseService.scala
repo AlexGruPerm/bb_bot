@@ -1,10 +1,31 @@
 package service
 
-import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
-import bybit_model.{AdviceToUser, ApiRespWalletBalance, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, KLine, KLineTopic, LogLevel, OpenInterestResult, OrderBookResult, OrderItemInfoInsert, RefSymbolsIntervals, Symbol, SymbolAdviceProc, SymbolsAdviceProc, SymbolsBalance, TradeAdviceOrder, TradeAdviceSelect, ViewDeepLine}
-import conf.{Postgresql, _}
-import postgresql.{PostgresDatasource, PostgresqlService}
-import zio.{Ref, ZIO, ZLayer}
+import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
+import bybit_model.{
+  AdviceToUser,
+  ApiRespWalletBalance,
+  Coin,
+  CommonWalletBalance,
+  CurrentCandle,
+  ErrorLog,
+  KLine,
+  KLineTopic,
+  LogLevel,
+  OpenInterestResult,
+  OrderBookResult,
+  OrderItemInfoInsert,
+  RefSymbolsIntervals,
+  Symbol,
+  SymbolAdviceProc,
+  SymbolsAdviceProc,
+  SymbolsBalance,
+  TradeAdviceOrder,
+  TradeAdviceSelect,
+  ViewDeepLine
+}
+import conf.{ Postgresql, _ }
+import postgresql.{ PostgresDatasource, PostgresqlService }
+import zio.{ Ref, ZIO, ZLayer }
 
 import java.sql.SQLException
 import javax.sql.DataSource
@@ -26,8 +47,8 @@ trait DatabaseService {
   def getMaxWalletBalanceId: ZIO[DataSource, SQLException, Long]
   def getCommonWalletBalance(maxWalletBalanceId: Long): ZIO[DataSource, SQLException, CommonWalletBalance]
   def getSymbolsBalance(maxWalletBalanceId: Long): ZIO[DataSource, SQLException, List[SymbolsBalance]]
-  //def getTradeAdvice(symbol: Symbol): ZIO[DataSource, SQLException, Option[TradeAdviceSelect]]
-  //def saveTradeAdviceOrder(order: TradeAdviceOrder): ZIO[DataSource, SQLException, Unit]
+  // def getTradeAdvice(symbol: Symbol): ZIO[DataSource, SQLException, Option[TradeAdviceSelect]]
+  // def saveTradeAdviceOrder(order: TradeAdviceOrder): ZIO[DataSource, SQLException, Unit]
   def saveOrderHistory(order: OrderItemInfoInsert): ZIO[DataSource, SQLException, Unit]
   def saveLogInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit]
   def executeReglamentCleanup(code: String): ZIO[DataSource, SQLException, Unit]

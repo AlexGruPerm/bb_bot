@@ -18,7 +18,7 @@ trait SymbolsService {
 
 case class SymbolsServiceImpl(ref: Ref[Set[Symbol]]) extends SymbolsService {
 
-  //expect exactly this format "kline.{interval}.{symbol}"
+  // expect exactly this format "kline.{interval}.{symbol}"
   private val Pat = """^kline\.([^.]+)\.([^.]+)$""".r
 
   def addSymbols(symbols: Set[Symbol]): UIO[Unit] =

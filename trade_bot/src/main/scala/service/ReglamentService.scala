@@ -27,6 +27,10 @@ object ReglamentService {
   private def executeCandleCleanup: ZioDBsReglSQLExc =
     ZIO.serviceWithZIO[ReglamentService](_.executeCleanup("keep_candle_days"))
 
+  private def executeOICleanup: ZioDBsReglSQLExc =
+    ZIO.serviceWithZIO[ReglamentService](_.executeCleanup("keep_oi_days"))
+
+  //todo: rewrite it, take meta from db
   def startReglamentCleanup: ZioDBsReglSQLExc = for {
 
     _ <- ReglamentService
@@ -45,6 +49,12 @@ object ReglamentService {
       .executeCandleCleanup
       .repeat(Schedule.spaced(10.minutes))
       .delay(6.minutes)
+      .fork
+
+    _ <- ReglamentService
+      .executeOICleanup
+      .repeat(Schedule.spaced(10.minutes))
+      .delay(8.minutes)
       .fork
 
   } yield ()

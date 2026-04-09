@@ -75,7 +75,7 @@ class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
       PairedUrl(
         signUrl = s"open-interest?category=inverse&symbol=$symbol&intervalTime=$interval_oi&limit=$limit_open_interest",
         apiUrl =
-          s"$bbUrl/v5/market/open-interest?category=inverse&symbol=$symbol&intervalTime=$interval_oi&limit=$limit_open_interest"
+          s"$bbUrl/v5/market/open-interest?category=linear&symbol=$symbol&intervalTime=$interval_oi&limit=$limit_open_interest"
       )
   }
 

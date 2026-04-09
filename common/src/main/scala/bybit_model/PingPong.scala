@@ -8,7 +8,7 @@ case class PingPong(
   ping_ts: Long = 0L,
   pong_ts: Long = 0L,
   state: PingPongState = Ok,
-  emptyOrLastPingSaved: Long = 0, //accumulated time while ping_ts = 0L
+  emptyOrLastPingSaved: Long = 0, // accumulated time while ping_ts = 0L
   fiber: Option[Fiber[Throwable, Unit]] = None,
   needRestart: Boolean = false
 ) {

@@ -25,10 +25,13 @@ object Saver {
     )
   } yield ()
 
-  val saveOpenInterests: ZIO[CommonGatherEnv, Throwable, Unit] = for {
-    _ <- ZIO.serviceWithZIO[GatherService](
-      _.saveOpenInterest()
-        .repeat(Schedule.spaced(10.minutes))
+  def saveOpenInterests(repeat_interval_mins: Int): ZIO[CommonGatherPpEnv, Throwable, Unit] = for {
+    logLevelId <- ZIO.serviceWithZIO[LogLevelService](_.findByCode("error"))
+    _          <- ZIO.serviceWithZIO[GatherService](
+      _.saveOpenInterest().catchSome {
+        ErrorHandlers.logPF(logLevelId.id, module, "saveOpenInterests")
+      }
+        .repeat(Schedule.spaced(repeat_interval_mins.minutes))
         .fork
     )
   } yield ()

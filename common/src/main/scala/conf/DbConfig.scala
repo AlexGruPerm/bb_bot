@@ -22,7 +22,7 @@ case class DbConfig(
       case str if str.contains("postgresql") => Postgresql
       case str if str.contains("oracle")     => Oracle
       case str if str.contains("clickhouse") => Clickhouse
-      case _                                 => throw new Exception(s"Unknow db type. driver = $driver")//Unknown
+      case _                                 => throw new Exception(s"Unknow db type. driver = $driver") // Unknown
     }
 
   val isUnknownDbType: Boolean = dbType == Unknown

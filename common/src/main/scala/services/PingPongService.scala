@@ -56,7 +56,7 @@ case class PingPongServiceImpl(ref: Ref[Map[IntervalCode, PingPong]]) extends Pi
         val fiberToInterrupt = pingPong.fiber.get
         ZIO.logInfo(s"PP INTERRUPT [fibId = ${pingPong.getFiberId}]") *>
           fiberToInterrupt.interrupt
-      case _ => ZIO.unit
+      case _                                          => ZIO.unit
     }
     _  <- saveNeedRestart(c_interval)
     _  <- ZIO.logInfo(s"PP INTERRUPTED")
