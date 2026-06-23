@@ -437,6 +437,22 @@ CREATE TABLE data.advice (
 
 create index idx_advice_not_sent on data.advice(is_sent_to_user,id) where is_sent_to_user=false; 
 
+create or replace view data.v_candle_kline as
+select c.id_symbol,
+       c.c_interval,
+       k.id_candle,
+       k.ts_db,
+       k.start_ts,
+       k.o,
+       k.h,
+       k.l,
+       k.c,
+       k.v
+from  data.candle c
+left join data.kline k on k.id_candle = c.id
+where c.start_ts  is not null
+order by c.id_symbol,c.c_interval,k.id_candle;
+
 create or replace view data.v_curr_state as
 select 'wallet_balance' as metric,
        wb.ts_db         as last_date_time,
