@@ -251,6 +251,7 @@ class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
           args = topics.map(klt => klt.getTopicString)
         )
         jsonSubscribeCoins = subscribeCoinsJson.toJson
+        _                 <- ZIO.logInfo(s"jsonSubscribeCoins = $jsonSubscribeCoins")
         _                 <- sendChatMessage(jsonSubscribeCoins)
         _                 <- ZIO.never
       } yield ())

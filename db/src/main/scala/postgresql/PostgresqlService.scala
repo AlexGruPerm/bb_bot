@@ -578,6 +578,7 @@ final class PostgresqlService extends DatabaseService {
     )
   } yield ()
 
+  /*
   override def isAvailiable: ZIO[DataSource, SQLException, Boolean] = for {
     ds      <- ZIO.service[DataSource]
     isAvail <- ZIO
@@ -596,6 +597,25 @@ final class PostgresqlService extends DatabaseService {
         case None    => false
       }
   } yield isAvail
+  */
+  override def isAvailiable: ZIO[DataSource, SQLException, Boolean] = {
+    val check = for {
+      ds      <- ZIO.service[DataSource]
+      _    <- ZIO.attemptBlockingInterrupt(ds.getConnection())
+        .tapBoth(
+          err => ZIO.logError(s"Error getting connection: ${err.getMessage}"),
+          conn => ZIO.attempt(conn.close())
+        )
+    } yield true
+
+    check
+      .timeout(zio.Duration.fromSeconds(5))
+      .map(_.getOrElse(false)) // false при таймауте
+      .catchAll {
+        case _: TimeoutException => ZIO.succeed(false)
+        case e                   => ZIO.fail(new SQLException("DB check failed", e))
+      }
+  }
 
   override def saveLogInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit] = for {
     _ <- ZIO.logInfo(s"POSTGRES DB AVAILABLE SAVE LOG ${err.error_class}")

@@ -50,6 +50,7 @@ object Gather extends ZIOAppDefault {
     symbols   <- db.getSymbols
     _         <- ZIO.serviceWithZIO[SymbolsService](_.addSymbols(symbols))
     coins     <- db.getCoins
+    _         <- ZIO.foreachDiscard(coins)(c => ZIO.logInfo(c.code))
     _         <- ZIO.serviceWithZIO[CoinService](_.addCoins(coins))
     logLevels <- db.getLogLevels
     _         <- ZIO.serviceWithZIO[LogLevelService](_.add(logLevels))
