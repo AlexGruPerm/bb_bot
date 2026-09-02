@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.market_unit.xml">
+
+    <changeSet id="2026_09_01-1-create-market_unit" author="yakushev">
+        <sql>
+          CREATE TABLE data.market_unit (
+	          id int4 NOT NULL,
+	          code varchar(9) NOT NULL,
+	          CONSTRAINT market_unit_pkey PRIMARY KEY (id),
+	          CONSTRAINT uk_market_unit_code UNIQUE (code)
+          );
+        </sql>
+        <comment>Create table market_unit</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-market_unit" author="yakushev">
+        <sql>
+          insert into data.market_unit(id,code) values(1,'baseCoin');
+          insert into data.market_unit(id,code) values(2,'quoteCoin');
+        </sql>
+        <comment>Populate market_unit</comment>
+    </changeSet>
+
+</databaseChangeLog>

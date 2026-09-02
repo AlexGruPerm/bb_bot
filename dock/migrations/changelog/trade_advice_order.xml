@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.trade_advice_order.xml">
+
+    <changeSet id="2026_09_01-1-create-trade_advice_order" author="yakushev">
+        <sql>
+          create table data.trade_advice_order(
+            orderId         int8 primary key,
+            id_trade_advice int8 not null constraint fk_trade_advice_order_ta references data.trade_advice(id),
+            ts_db           timestamp DEFAULT LOCALTIMESTAMP not null,
+            ts_bybit        int8 not null
+          );
+          comment on column data.trade_advice_order.id_trade_advice is 'link to trade advice data.trade_advice (advice by algo)';
+          comment on column data.trade_advice_order.ts_bybit is 'ts when order was created, returned from /v5/order/create with orderId'; 
+        </sql>
+        <comment>Create table trade_advice_order</comment>
+    </changeSet>
+
+</databaseChangeLog>

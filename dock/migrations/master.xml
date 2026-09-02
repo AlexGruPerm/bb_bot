@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
+    <include file="changelog/coin.xml" relativeToChangelogFile="true" />
+    <include file="changelog/symbol.xml" relativeToChangelogFile="true" />
+    <include file="changelog/trade_category.xml" relativeToChangelogFile="true" />
+    <include file="changelog/trade_side.xml" relativeToChangelogFile="true" />
+    <include file="changelog/trade_order_type.xml" relativeToChangelogFile="true" />
+    <include file="changelog/market_unit.xml" relativeToChangelogFile="true" />
+    <include file="changelog/v_symbols.xml" relativeToChangelogFile="true" />
+    <include file="changelog/trade_advice.xml" relativeToChangelogFile="true" />
+    <include file="changelog/trade_advice_order.xml" relativeToChangelogFile="true" />
+    <include file="changelog/bb_order.xml" relativeToChangelogFile="true" />
+    <include file="changelog/v_trade_advice.xml" relativeToChangelogFile="true" />
+    <include file="changelog/order_book_snapshot.xml" relativeToChangelogFile="true" />
+    <include file="changelog/order_book.xml" relativeToChangelogFile="true" />
+    <include file="changelog/open_interest.xml" relativeToChangelogFile="true" />
+    <include file="changelog/candle.xml" relativeToChangelogFile="true" />
+    <include file="changelog/kline.xml" relativeToChangelogFile="true" />
+    <include file="changelog/interval.xml" relativeToChangelogFile="true" />
+    <include file="changelog/ref_symbols_interval.xml" relativeToChangelogFile="true" />
+    <include file="changelog/wallet_balance.xml" relativeToChangelogFile="true" />
+    <include file="changelog/wallet_balance_coin.xml" relativeToChangelogFile="true" />
+    <include file="changelog/ref_symbols_intervals.xml" relativeToChangelogFile="true" />
+    <include file="changelog/symbols_ob_stat.xml" relativeToChangelogFile="true" />
+    <include file="changelog/trade_meta.xml" relativeToChangelogFile="true" />
+    <include file="changelog/bb_log.xml" relativeToChangelogFile="true" />
+    <include file="changelog/log_level.xml" relativeToChangelogFile="true" />
+    <include file="changelog/common_log.xml" relativeToChangelogFile="true" />
+    <include file="changelog/reglament.xml" relativeToChangelogFile="true" />
+    <include file="changelog/reglament_log.xml" relativeToChangelogFile="true" />
+    <include file="changelog/advice_meta.xml" relativeToChangelogFile="true" />
+    <include file="changelog/ref_advice_meta_interval.xml" relativeToChangelogFile="true" />
+    <include file="changelog/advice.xml" relativeToChangelogFile="true" />
+    <include file="changelog/v_curr_state.xml" relativeToChangelogFile="true" />
+    <include file="changelog/view_deep.xml" relativeToChangelogFile="true" />
+    <include file="changelog/call_advice_function.xml" relativeToChangelogFile="true" />
+    <include file="changelog/bounce_turn.xml" relativeToChangelogFile="true" />
+    <include file="changelog/exit_from_channel.xml" relativeToChangelogFile="true" />
+    <include file="changelog/get_total_wallet_balance.xml" relativeToChangelogFile="true" />
+    <include file="changelog/get_last_price.xml" relativeToChangelogFile="true" />
+    <include file="changelog/get_order_id.xml" relativeToChangelogFile="true" />
+    <include file="changelog/get_order_price.xml" relativeToChangelogFile="true" />
+    <include file="changelog/already_advice.xml" relativeToChangelogFile="true" />
+    <include file="changelog/log_trade.xml" relativeToChangelogFile="true" />
+    <include file="changelog/get_last_closed_candle_direct.xml" relativeToChangelogFile="true" />
+    <include file="changelog/get_current_candle_direct.xml" relativeToChangelogFile="true" />
+</databaseChangeLog>

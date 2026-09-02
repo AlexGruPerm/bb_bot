@@ -1,7 +1,7 @@
 package bybit_model
 
 import bybit_model.Types.CoinId
-import zio.json.{DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder}
+import zio.json.{ DeriveJsonDecoder, DeriveJsonEncoder, JsonDecoder, JsonEncoder }
 
 import scala.util.Try
 
@@ -50,14 +50,14 @@ case class WalletBalanceEntity(
     )
 }
 
-// Промежуточный тип: проблемные поля — как строки
+
 case class RawWalletBalanceEntity(
-                                   totalEquity: Double,
-                                   totalInitialMargin: Option[String],
-                                   totalAvailableBalance: Option[String],
-                                   totalWalletBalance: Double,
-                                   coin: List[WalletBalanceEntityCoin]
-                                 )
+  totalEquity: Double,
+  totalInitialMargin: Option[String],
+  totalAvailableBalance: Option[String],
+  totalWalletBalance: Double,
+  coin: List[WalletBalanceEntityCoin]
+)
 
 case class WalletBalanceEntityCoin(
   equity: Double,
@@ -110,22 +110,21 @@ object WalletBalanceEntity {
   implicit val decoder: JsonDecoder[WalletBalanceEntity] =
     DeriveJsonDecoder.gen[RawWalletBalanceEntity].map { raw =>
       def toOptDouble(s: Option[String]): Option[Double] = s match {
-        case None => None
+        case None                          => None
         case Some(str) if str.trim.isEmpty => None
-        case Some(str) => Try(str.toDouble).toOption
+        case Some(str)                     => Try(str.toDouble).toOption
       }
       WalletBalanceEntity(
-        totalEquity          = raw.totalEquity,
-        totalInitialMargin   = toOptDouble(raw.totalInitialMargin),
-        totalAvailableBalance= toOptDouble(raw.totalAvailableBalance),
-        totalWalletBalance    = raw.totalWalletBalance,
+        totalEquity = raw.totalEquity,
+        totalInitialMargin = toOptDouble(raw.totalInitialMargin),
+        totalAvailableBalance = toOptDouble(raw.totalAvailableBalance),
+        totalWalletBalance = raw.totalWalletBalance,
         coin = raw.coin
       )
     }
 
   implicit val encoder: JsonEncoder[WalletBalanceEntity] = DeriveJsonEncoder.gen[WalletBalanceEntity]
 }
-
 
 object WalletBalanceEntityCoin {
   implicit val decoder: JsonDecoder[WalletBalanceEntityCoin] = DeriveJsonDecoder.gen[WalletBalanceEntityCoin]

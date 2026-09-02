@@ -15,11 +15,6 @@ if [ ! -w "$PGDATA/postgresql.conf" ]; then
   exit 1
 fi
 
-echo "===> parameters for pg_cron"
-echo "shared_preload_libraries = 'pg_cron'" >> "$PGDATA/postgresql.conf"
-echo "cron.database_name = '$BB_DB_NAME'" >> "$PGDATA/postgresql.conf"
-echo "cron.host = ''" >> "$PGDATA/postgresql.conf"
-
 echo "====> parameters for logs"
 echo "log_directory = '/var/lib/postgresql/logs'" >> "$PGDATA/postgresql.conf"
 echo "log_filename = 'postgresql-%Y-%m-%d_%H%M%S.log'" >> "$PGDATA/postgresql.conf"

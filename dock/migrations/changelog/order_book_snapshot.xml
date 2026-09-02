@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.order_book_snapshot.xml">
+
+    <changeSet id="2026_09_01-1-create-order_book_snapshot" author="yakushev">
+        <sql>
+          create table data.order_book_snapshot(
+           id        bigserial PRIMARY KEY,
+           id_symbol int not null constraint fk_ob_snap_symbol references data.symbol(id) on delete cascade,
+           ts_db     timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           ts_bybit  int8 not null,
+           constraint uk_order_book_snapshot unique(id_symbol,ts_db)
+          );
+
+          CREATE INDEX idx_desc_obs_ts_bybit         ON data.order_book_snapshot USING btree (ts_bybit DESC);
+          create index idx_order_book_ss_symbol      on data.order_book_snapshot(id_symbol);
+          create index idx_order_book_ss_symbol_tsbb on data.order_book_snapshot(id_symbol,ts_bybit);
+        </sql>
+        <comment>Create table order_book_snapshot</comment>
+    </changeSet>
+
+</databaseChangeLog>

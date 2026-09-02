@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.log_trade.xml">
+
+    <changeSet id="2026_09_01-1-create-log_trade" author="yakushev">
+        <sql splitStatements="false">
+         <![CDATA[
+            CREATE OR REPLACE PROCEDURE data.log_trade(IN p_recomend character varying, IN p_id_symbol integer, IN p_ord_type character varying, IN p_module character varying, IN p_symbol_code character varying, IN p_state character varying, IN p_open_price numeric, IN p_curr_price numeric, IN p_price_div numeric, IN p_close_tpsp numeric, IN p_qty_equity numeric, IN p_order_id_to_close bigint)
+             LANGUAGE sql
+            AS $$
+	            INSERT INTO data.common_log(id_log_level, id_symbol, module, msg, orderid_to_close)
+	            VALUES (
+			            6,p_id_symbol,p_module,
+			            format(
+			            '[%s][%s] state = %s opened.%s.price = %s curr = %s price_div = %s close_tpsp = %s qty.equity = %s',
+			             p_recomend, p_symbol_code, p_state, p_ord_type, p_open_price, p_curr_price, p_price_div, p_close_tpsp, p_qty_equity
+			            ),
+                        p_order_id_to_close
+	                   );
+            $$
+            ; 
+        ]]>
+        </sql>
+        <comment>Create function log_trade</comment>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.view_deep.xml">
+
+    <changeSet id="2026_09_01-1-create-view_deep" author="yakushev">
+        <sql>
+        <![CDATA[
+          CREATE OR REPLACE FUNCTION data.view_deep(p_interval text, p_deep_bars int)
+           RETURNS TABLE(
+				          code varchar(24),   
+				          p_first numeric,
+				          c_last numeric,
+				          dif_prcnt numeric,
+				          move_dir varchar(4),
+				          smpl_volat numeric
+                        )
+           LANGUAGE sql
+          AS $function$
+          with ds as (
+			          select c.*,
+			                 (case when row_number() over(partition by c.id_symbol order by c.ts_db asc )=1 then 1 else 0 end) as is_first,
+			                 (case when row_number() over(partition by c.id_symbol order by c.ts_db desc)=1 then 1 else 0 end) as is_last
+			          from   data.candle c,
+				             (
+					          select ci.id_symbol, 
+					                 max(ci.ts_db) - make_interval(mins => p_interval::int * p_deep_bars) as ts_from,
+					                 max(ci.ts_db) as ts_to
+					          from   data.candle ci
+					          where  ci.start_ts is not null and 
+					                 ci.c_interval = p_interval
+					          group by ci.id_symbol
+				             ) intrvls
+			          where  c.start_ts is not null and 
+			                 c.c_interval = p_interval and 
+			                 c.id_symbol = intrvls.id_symbol and 
+			                 c.ts_db between intrvls.ts_from and intrvls.ts_to 
+                     ),
+              dsvlt as (
+				           select c.id_symbol,
+				                  --min(c.l) as min_l,
+				                  --round(avg((c.o+c.c)/2),4) as avg_p,
+				                  --max(c.h) as max_h,
+				                  round(((max(c.h) - min(c.l))/round(avg((c.o+c.c)/2),4))*100,2) as smpl_volat
+				             from ds c
+				            group by c.id_symbol  
+                       ),       
+              diff as (
+			          select cf.id_symbol,
+			                 cf.o as p_first,
+			                 cl.c as c_last,
+			                 round(((cl.c - cf.o)/cf.o)*100,2) as dif_prcnt,
+			                 (case when cf.o < cl.c then 'up' else 'down' end) as move_dir
+			          from ds cf, 
+			               ds cl
+			          where cf.id_symbol = cl.id_symbol and
+			                cf.is_first = 1 and 
+			                cl.is_last  = 1
+                       )
+              select null::varchar(24) as code,
+                     null::numeric     as p_first,
+                     null::numeric     as c_last,
+                     null::numeric     as dif_prcnt,
+                     (case
+                       when sum(1) = sum(case when df.move_dir ='up'   then 1 else 0 end) then 'UP'
+                       when sum(1) = sum(case when df.move_dir ='down' then 1 else 0 end) then 'DOWN'
+                       else 'DIFF'
+                      end) as move_dir,
+                     null::numeric     as smpl_volat
+                from diff df
+          union all    
+              select s.code,
+                     --df.id_symbol,
+                     df.p_first,
+                     df.c_last,
+                     df.dif_prcnt,
+                     df.move_dir,
+                     vt.smpl_volat
+                from diff df,
+                     dsvlt vt,
+                     data.symbol s 
+               where df.id_symbol = vt.id_symbol and 
+                     df.id_symbol = s.id
+          order by smpl_volat desc nulls first
+          $function$
+          ;
+            ]]>
+        </sql>
+        <comment>Create view view_deep</comment>
+    </changeSet>
+
+</databaseChangeLog>

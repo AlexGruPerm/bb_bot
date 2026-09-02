@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.get_current_candle_direct.xml">
+
+    <changeSet id="2026_09_01-1-create-get_current_candle_direct" author="yakushev">
+        <sql splitStatements="false">
+         <![CDATA[
+            CREATE OR REPLACE FUNCTION data.get_current_candle_direct(p_id_symbol integer, p_interval character varying)
+             RETURNS character varying
+             LANGUAGE sql
+            AS $$
+            /*
+              Return direction on last closed candle.
+            */	 
+            select (case
+                     when k.o < k.c then 'up'
+                     when k.o > k.c then 'down'
+                     else 'unknown'
+                    end)
+              from data.kline k 
+              where k.id_candle = (
+					            select ci.id
+					            from   data.candle ci 
+					            where  ci.id_symbol  = p_id_symbol and
+					                   ci.c_interval = p_interval and
+					                   ci.start_ts is null
+				             )
+            order by k.ts_db desc
+            limit 1;
+            $$
+            ;
+        ]]>
+        </sql>
+        <comment>Create function get_current_candle_direct</comment>
+    </changeSet>
+
+</databaseChangeLog>

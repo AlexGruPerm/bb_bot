@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.trade_order_type.xml">
+
+    <changeSet id="2026_09_01-1-create-trade_order_type" author="yakushev">
+        <sql>
+          CREATE TABLE data.trade_order_type (
+	          id int4 NOT NULL,
+	          code varchar(24) NOT NULL,
+	          CONSTRAINT trade_order_type_pkey PRIMARY KEY (id),
+	          CONSTRAINT uk_trade_order_type UNIQUE (code)
+          );
+        </sql>
+        <comment>Create table trade_order_type</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-trade_order_type" author="yakushev">
+        <sql>
+          insert into data.trade_order_type(id,code) values(1,'Market');
+          insert into data.trade_order_type(id,code) values(2,'Limit');
+        </sql>
+        <comment>Populate trade_order_type</comment>
+    </changeSet>
+
+</databaseChangeLog>

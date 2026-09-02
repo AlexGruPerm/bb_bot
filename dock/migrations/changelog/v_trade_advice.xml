@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.v_trade_advice.xml">
+
+    <changeSet id="2026_09_01-1-create-view-v_trade_advice" author="yakushev">
+        <sql>
+        create or replace view data.v_trade_advice
+        as select 
+            ta.id as trade_advice_id,
+            ta.id_symbol,
+            tc.code as category,
+            s.code as symbol,
+            ta.isleverage::integer as isleverage,  
+            ts.code as side,
+            tot.code as ordertype,
+            ta.qty,
+            mu.code as marketunit,
+            ta.slippagetolerancetype,
+            ta.slippagetolerance
+           from data.trade_advice ta
+             join data.symbol s on s.id = ta.id_symbol
+             join data.trade_category tc on tc.id = ta.id_category
+             join data.trade_side ts on ts.id = ta.id_side
+             join data.trade_order_type tot on tot.id = ta.id_order_type
+             join data.market_unit mu on mu.id = ta.id_market_unit
+          where ta.is_taken = false
+          order by ta.ts_db desc
+         limit 1;
+        </sql>
+        <comment>Create view v_trade_advice</comment>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.common_log.xml">
+
+    <changeSet id="2026_09_01-1-create-common_log" author="yakushev">
+        <sql>
+          create table data.common_log( 
+           id                bigserial primary key,
+           id_log_level      int4 not null constraint fk_common_log_level  references data.log_level(id),
+           id_symbol         int4  constraint fk_common_log_symbol references data.symbol(id),
+           ts_db             timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           module            varchar(512) not null, 
+           action            varchar(512) not null,
+           error_class       varchar(512) not null,
+           msg               varchar(1000),
+           orderid_to_close  int8
+          );
+
+          create index idx_common_log_sym_mod_info on data.common_log(module,id_symbol,ts_db desc) where id_log_level=1 and id_symbol is not null;
+          create index idx_common_log_sym_mod_trade on data.common_log(module,id_symbol,ts_db desc) where id_log_level=6 and id_symbol is not null; 
+        </sql>
+        <comment>Create table common_log</comment>
+    </changeSet>
+
+</databaseChangeLog>

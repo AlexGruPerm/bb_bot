@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.bb_log.xml">
+
+    <changeSet id="2026_09_01-1-create-bb_log" author="yakushev">
+        <sql>
+          create table data.bb_log(
+           id           bigserial primary key,
+           ts_db        timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           bb_module    varchar(256) not null,
+           bb_action    varchar(256) not null,
+           error_class  varchar(256) not null,
+           msg          varchar(1000)
+          );
+        </sql>
+        <comment>Create table bb_log</comment>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.v_symbols.xml">
+
+    <changeSet id="2026_09_01-1-create-view-v_symbols" author="yakushev">
+        <sql>
+          create or replace view "data".v_symbols
+          as select s.id,
+              s.code,
+              c.code as coin,
+              s.is_enabled,
+              s.is_tradable
+             from data.symbol s
+               join data.coin c on c.id = s.id_coin;
+        </sql>
+        <comment>Create viewv_symbols</comment>
+    </changeSet>
+
+</databaseChangeLog>

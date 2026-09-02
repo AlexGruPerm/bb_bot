@@ -597,11 +597,12 @@ final class PostgresqlService extends DatabaseService {
         case None    => false
       }
   } yield isAvail
-  */
+   */
   override def isAvailiable: ZIO[DataSource, SQLException, Boolean] = {
     val check = for {
-      ds      <- ZIO.service[DataSource]
-      _    <- ZIO.attemptBlockingInterrupt(ds.getConnection())
+      ds <- ZIO.service[DataSource]
+      _  <- ZIO
+        .attemptBlockingInterrupt(ds.getConnection())
         .tapBoth(
           err => ZIO.logError(s"Error getting connection: ${err.getMessage}"),
           conn => ZIO.attempt(conn.close())

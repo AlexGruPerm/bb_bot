@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.trade_side.xml">
+
+    <changeSet id="2026_09_01-1-create-trade_side" author="yakushev">
+        <sql>
+          create table data.trade_side(
+           id   int primary key,
+           code varchar(4) not null,
+           CONSTRAINT uk_trade_side_code UNIQUE (code)
+          );
+        </sql>
+        <comment>Create table trade_side</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-trade_side" author="yakushev">
+        <sql>
+          insert into data.trade_side(id,code) values(1,'Buy');
+          insert into data.trade_side(id,code) values(2,'Sell');
+        </sql>
+        <comment>Populate trade_side</comment>
+    </changeSet>
+
+</databaseChangeLog>

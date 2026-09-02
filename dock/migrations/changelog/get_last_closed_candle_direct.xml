@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.get_last_closed_candle_direct.xml">
+
+    <changeSet id="2026_09_01-1-create-get_last_closed_candle_direct" author="yakushev">
+        <sql splitStatements="false">
+         <![CDATA[
+            CREATE OR REPLACE FUNCTION data.get_last_closed_candle_direct(p_id_symbol integer, p_interval character varying)
+             RETURNS character varying
+             LANGUAGE sql
+            AS $$
+            /*
+              Return direction on last closed candle.
+            */	
+              select (case
+                       when c.o < c.c then 'up'
+                       when c.o > c.c then 'down'
+                       else 'unknown'
+                      end)
+                from data.candle c 
+               where c.id_symbol  = p_id_symbol and
+                     c.c_interval = p_interval and
+                     c.ts_db = (
+					              select max(ci.ts_db) as max_ts_bd
+					              from   data.candle ci 
+					              where  ci.id_symbol  = p_id_symbol and
+					                     ci.c_interval = p_interval and
+					                     ci.start_ts is not null
+					              group by ci.c_interval
+				               );
+            $$
+            ;
+        ]]>
+        </sql>
+        <comment>Create function get_last_closed_candle_direct</comment>
+    </changeSet>
+
+</databaseChangeLog>

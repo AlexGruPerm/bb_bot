@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.bb_order.xml">
+
+    <changeSet id="2026_09_01-1-create-bb_order" author="yakushev">
+        <sql>
+          CREATE TABLE data.bb_order (
+	          orderid int8 NULL,
+	          orderlinkid int8 NULL,
+	          symbol varchar(24) NULL,
+	          price numeric NULL,
+	          qty numeric NULL,
+	          side varchar(10) NULL,
+	          isleverage int4 NULL,
+	          orderstatus varchar(100) NULL,
+	          canceltype varchar(100) NULL,
+	          rejectreason varchar(100) NULL,
+	          avgprice numeric NULL,
+	          cumexecfee numeric NULL,
+	          slippagetolerancetype varchar(24) NULL,
+	          marketunit varchar(15) NULL,
+	          slippagetolerance numeric NULL
+          );
+
+          comment on table data.bb_order is 'Just information about opened order, returned from /v5/order/history';
+        </sql>
+        <comment>Create table bb_order</comment>
+    </changeSet>
+
+</databaseChangeLog>

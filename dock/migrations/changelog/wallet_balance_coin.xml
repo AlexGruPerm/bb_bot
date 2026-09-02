@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.wallet_balance_coin.xml">
+
+    <changeSet id="2026_09_01-1-create-wallet_balance_coin" author="yakushev">
+        <sql>
+          create table data.wallet_balance_coin(
+           id                    bigserial primary key,
+           ts_db                 timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           id_wallet_balance     int8 not null constraint fk_wallet_blnc_coin_wb   references data.wallet_balance(id) on delete cascade,
+           id_coin               int4 not null constraint fk_wallet_blnc_coin_coin references data.coin(id),
+           equity                numeric not null,
+           usdValue              numeric not null,
+           cumRealisedPnl        numeric not null
+          );
+
+          create index idx_wallet_balance_coin_wb on "data".wallet_balance_coin(id_wallet_balance);
+        </sql>
+        <comment>Create table wallet_balance_coin</comment>
+    </changeSet>
+
+</databaseChangeLog>

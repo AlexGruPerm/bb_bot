@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.call_advice_function.xml">
+
+    <changeSet id="2026_09_01-1-create-call_advice_function" author="yakushev">
+        <sql splitStatements="false">
+        <![CDATA[
+          CREATE OR REPLACE FUNCTION data.call_advice_function(func_name text, id_symbol integer, ts bigint)
+           RETURNS text
+           LANGUAGE plpgsql
+           STRICT
+          AS $$
+          DECLARE
+            result text;
+          BEGIN
+            EXECUTE format('SELECT data.%I(%L, %L)', func_name, id_symbol, ts) INTO result;
+            RETURN result;
+          END;
+          $$
+          ;
+        ]]>
+        </sql>
+        <comment>Create function call_advice_function</comment>
+    </changeSet>
+
+</databaseChangeLog>

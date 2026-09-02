@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.trade_meta.xml">
+
+    <changeSet id="2026_09_01-1-create-trade_meta" author="yakushev">
+        <sql>
+          create table data.trade_meta(
+           id_symbol   int not null constraint fk_trade_meta_symbol references data.symbol(id),
+           tpsl_diff   numeric not null,
+           qty         numeric not null,
+           isleverage  int4 default 0
+          );
+        </sql>
+        <comment>Create table trade_meta</comment>
+    </changeSet>
+
+</databaseChangeLog>

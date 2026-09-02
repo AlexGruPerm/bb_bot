@@ -44,6 +44,24 @@ services:
     networks:
       appnet:
         ipv4_address: 172.30.0.10
+        
+  liquibase:
+    image: liquibase/liquibase:4.29
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    environment:
+      LIQUIBASE_COMMAND_URL: jdbc:postgresql://postgres_db:5432/${BB_DB_NAME}
+      LIQUIBASE_COMMAND_USERNAME: ${BB_USER_LOGIN}
+      LIQUIBASE_COMMAND_PASSWORD: ${BB_USER_PASSWORD}
+      LIQUIBASE_COMMAND_CHANGELOG_FILE: changelog/master.xml
+    volumes:
+      - ./migrations:/liquibase/changelog
+    networks:
+      appnet:
+        ipv4_address: 172.30.0.20
+    command: liquibase update
+        
   gather:
     container_name: gather
     build: ./gather
@@ -53,6 +71,7 @@ services:
     networks:
       appnet:
         ipv4_address: 172.30.0.11
+        
   trader:
     container_name: trader
     build: ./trader

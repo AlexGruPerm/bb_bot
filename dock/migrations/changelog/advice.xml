@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.advice.xml">
+
+    <changeSet id="2026_09_01-1-create-advice" author="yakushev">
+        <sql>
+          CREATE TABLE data.advice (
+	          id serial4 NOT NULL,
+	          adviser_id int4 NOT NULL,
+	          id_candle int8, -- nullable because reglament cleaning of data.candle
+	          id_symbol int4 NOT NULL,
+	          ts_db timestamp NOT NULL,
+	          start_ts int8 NOT NULL,
+	          end_ts int8 NOT NULL,
+	          c_interval varchar(3) NOT NULL,
+	          o numeric NOT NULL,
+	          h numeric NOT NULL,
+	          l numeric NOT NULL,
+	          c numeric NOT NULL,
+	          v numeric NOT NULL,
+	          advice text NOT NULL,
+	          is_sent_to_user bool DEFAULT false NOT NULL,
+	          CONSTRAINT advice_pkey PRIMARY KEY (id),
+	          CONSTRAINT ch_advice_str CHECK ((advice = ANY (ARRAY['buy'::text, 'sell'::text]))),
+	          CONSTRAINT fk_advice_advice_meta FOREIGN KEY (adviser_id) REFERENCES "data".advice_meta(id),
+	          CONSTRAINT fk_advice_candle FOREIGN KEY (id_candle) REFERENCES "data".candle(id) on delete set null, 
+	          CONSTRAINT fk_advice_symbol FOREIGN KEY (id_symbol) REFERENCES "data".symbol(id)
+          );
+
+          create index idx_advice_not_sent on data.advice(is_sent_to_user,id) where is_sent_to_user=false; 
+        </sql>
+        <comment>Create table advice</comment>
+    </changeSet>
+
+</databaseChangeLog>

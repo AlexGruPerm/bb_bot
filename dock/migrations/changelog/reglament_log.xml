@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.reglament_log.xml">
+
+    <changeSet id="2026_09_01-1-create-reglament_log" author="yakushev">
+        <sql>
+          create table data.reglament_log(
+           id           bigserial primary key,
+           id_reglament int not null constraint fk_regl_log_regl references data.reglament(id),
+           begin_ts     timestamp default localtimestamp not null,
+           end_ts       timestamp,
+           deleted_rows int
+          );
+        </sql>
+        <comment>Create table reglament_log</comment>
+    </changeSet>
+
+</databaseChangeLog>

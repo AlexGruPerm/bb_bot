@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.reglament.xml ">
+
+    <changeSet id="2026_09_01-1-create-reglament" author="yakushev">
+        <sql>
+          create table data.reglament(
+           id       serial primary key,
+           prop     text not null,
+           code     varchar(32) not null,
+           int_val  int  not null,
+           constraint uk_reglament unique(code)
+          );
+        </sql>
+        <comment>Create table reglament</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-reglament" author="yakushev">
+        <sql>
+          insert into data.reglament(prop,code,int_val) values('Keep wallet_balance days','keep_wb_days',10);
+          insert into data.reglament(prop,code,int_val) values('Keep orderorder_book_snapshot days','keep_obs_days',10);
+          insert into data.reglament(prop,code,int_val) values('Keep candle days','keep_candle_days',10);
+          insert into data.reglament(prop,code,int_val) values('Keep open interset days', 'keep_oi_days', 10);
+        </sql>
+        <comment>Create table reglament</comment>
+    </changeSet>
+
+</databaseChangeLog>
