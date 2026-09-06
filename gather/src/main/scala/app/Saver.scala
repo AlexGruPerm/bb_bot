@@ -51,4 +51,15 @@ object Saver {
     )
   } yield ()
 
+  def saveFuturesData(repeat_interval_mins: Int): ZIO[CommonGatherPpEnv, Throwable, Unit] = for {
+    logLevelId <- ZIO.serviceWithZIO[LogLevelService](_.findByCode("error"))
+    _          <- ZIO.serviceWithZIO[GatherService](
+      _.saveFuturesData().catchSome {
+          ErrorHandlers.logPF(logLevelId.id, module, "saveFuturesData")
+        }
+        .repeat(Schedule.spaced(repeat_interval_mins.minutes))
+        .fork
+    )
+  } yield ()
+
 }

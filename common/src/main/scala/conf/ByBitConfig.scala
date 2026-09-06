@@ -11,7 +11,8 @@ case class ByBitConfig(
   pp_check_restart: Int,
   check_restart_savebar_freq: Int,
   save_order_book_freq_mins: Int,
-  save_oi_freq_mins: Int
+  save_oi_freq_mins: Int,
+  save_futures_data_freq_mins: Int
 ) {
   override def toString: String =
     s"""

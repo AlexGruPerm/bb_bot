@@ -1,34 +1,19 @@
 package bybit
 
-import bybit_model.{
-  ApiRespCreateOrder,
-  ApiRespOpenInterest,
-  ApiRespOrderBook,
-  ApiRespOrderHistInfo,
-  ApiRespWalletBalance,
-  KLine,
-  KLineTopic,
-  LimitTradeAdvice,
-  MarketTradeAdvice,
-  Ok,
-  OpenInterestResult,
-  OrderBookResult,
-  SuccessSubscribeKLine,
-  TradeAdvice
-}
-import conf.{ AppConfig, ByBitConfig }
-import services.{ PingPongService, SymbolsService }
+import bybit_model.{ApiRespCreateOrder, ApiRespFuturesData, ApiRespOpenInterest, ApiRespOrderBook, ApiRespOrderHistInfo, ApiRespWalletBalance, FuturesData, FuturesDataResult, KLine, KLineTopic, LimitTradeAdvice, MarketTradeAdvice, Ok, OpenInterestResult, OrderBookResult, SuccessSubscribeKLine, TradeAdvice}
+import conf.{AppConfig, ByBitConfig}
+import services.{PingPongService, SymbolsService}
 import zio.http.ChannelEvent.Read
-import zio.http.{ Body, Client, Handler, Headers, Request, Response, URL, WebSocketChannel, WebSocketFrame }
-import zio.{ durationInt, Clock, Fiber, Queue, RIO, Scope, Task, ZIO, ZLayer }
-import zio.json.{ DecoderOps, EncoderOps }
+import zio.http.{Body, Client, Handler, Headers, Request, Response, URL, WebSocketChannel, WebSocketFrame}
+import zio.{Clock, Fiber, Queue, RIO, Scope, Task, ZIO, ZLayer, durationInt}
+import zio.json.{DecoderOps, EncoderOps}
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
 import scala.annotation.nowarn
-import bybit_model.Types.{ IntervalCode, OrderID, SymbolCode }
+import bybit_model.Types.{IntervalCode, OrderID, SymbolCode}
 
 trait ByBitService {
   def getOrderBook(symbol: String): ZIO[Scope with Client, Throwable, OrderBookResult]
@@ -40,6 +25,7 @@ trait ByBitService {
   def getWalletBalance(): ZIO[Scope with Client, Throwable, ApiRespWalletBalance]
   def orderCreate(advice: TradeAdvice): ZIO[Scope with Client, Throwable, ApiRespCreateOrder]
   def getOrderHistInfo(orderId: OrderID): ZIO[Scope with Client, Throwable, ApiRespOrderHistInfo]
+  def getFuturesData(): ZIO[Scope with Client, Throwable, FuturesDataResult]
 }
 
 class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
@@ -52,6 +38,8 @@ class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
   private val recvWindow: String       = config.recvWindow
 
   private val wsUrlSpot = "wss://stream.bybit.com/v5/public/spot"
+
+  private val futDataUrl = s"$bbUrl/v5/market/tickers?category=linear"
 
   private val bbUrl_Create_Order: String       = s"$bbUrl/v5/order/create"
   private val bbUrl_Order_History_Info: String = s"$bbUrl/v5/order/history"
@@ -236,6 +224,16 @@ class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
     openInterestSrcJsonData <- response.body.asString
     parsedOpenInterest      <- ZIO.attempt(openInterestSrcJsonData.fromJson[ApiRespOpenInterest]).either
     res                     <- ApiDecode.unwrap(parsedOpenInterest)
+  } yield res.result
+
+  override def getFuturesData(): ZIO[Scope with Client, Throwable, FuturesDataResult] = for {
+    //ts                      <- ZIO.succeed(Instant.now().toEpochMilli.toString)
+    urlFutures              <- ZIO.succeed(futDataUrl)
+    decodedApiUrl           <- ZIO.fromEither(URL.decode(urlFutures)).orElseFail(new IllegalArgumentException(s"Invalid Futures dataURL: $urlFutures"))
+    response                <- ZIO.serviceWithZIO[Client](_.request(Request.get(decodedApiUrl)))
+    futuresDataJsonData     <- response.body.asString
+    parsedFuturesData      <- ZIO.attempt(futuresDataJsonData.fromJson[ApiRespFuturesData]).either
+    res                    <- ApiDecode.unwrap(parsedFuturesData)
   } yield res.result
 
   @nowarn("msg=dead code")

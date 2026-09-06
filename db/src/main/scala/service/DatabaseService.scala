@@ -1,31 +1,10 @@
 package service
 
-import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
-import bybit_model.{
-  AdviceToUser,
-  ApiRespWalletBalance,
-  Coin,
-  CommonWalletBalance,
-  CurrentCandle,
-  ErrorLog,
-  KLine,
-  KLineTopic,
-  LogLevel,
-  OpenInterestResult,
-  OrderBookResult,
-  OrderItemInfoInsert,
-  RefSymbolsIntervals,
-  Symbol,
-  SymbolAdviceProc,
-  SymbolsAdviceProc,
-  SymbolsBalance,
-  TradeAdviceOrder,
-  TradeAdviceSelect,
-  ViewDeepLine
-}
-import conf.{ Postgresql, _ }
-import postgresql.{ PostgresDatasource, PostgresqlService }
-import zio.{ Ref, ZIO, ZLayer }
+import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
+import bybit_model.{AdviceToUser, ApiRespWalletBalance, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, FuturesDataResult, KLine, KLineTopic, LogLevel, OpenInterestResult, OrderBookResult, OrderItemInfoInsert, RefSymbolsIntervals, Symbol, SymbolAdviceProc, SymbolsAdviceProc, SymbolsBalance, TradeAdviceOrder, TradeAdviceSelect, ViewDeepLine}
+import conf.{Postgresql, _}
+import postgresql.{PostgresDatasource, PostgresqlService}
+import zio.{Ref, ZIO, ZLayer}
 
 import java.sql.SQLException
 import javax.sql.DataSource
@@ -38,6 +17,7 @@ trait DatabaseService {
   def refSymbolsIntervals(symbols: Set[SymbolId]): ZIO[DataSource, SQLException, Set[RefSymbolsIntervals]]
   def saveOrderBook(symbol: Symbol, orderBook: OrderBookResult): ZIO[DataSource, SQLException, Unit]
   def saveOpenInterest(symbol: Symbol, orderBook: OpenInterestResult): ZIO[DataSource, SQLException, Unit]
+  def saveFuturesData(futuresData: FuturesDataResult): ZIO[DataSource, SQLException, Unit]
   def saveBar(
     kline: KLine,
     ref: Ref[Map[KLineTopic, CurrentCandle]],

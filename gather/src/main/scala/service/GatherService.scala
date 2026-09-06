@@ -18,6 +18,7 @@ trait GatherService {
   def saveBars(optInterval: Option[IntervalCode] = None): ZIO[ByBitDsSymbolsPp, Throwable, Unit]
   def saveWalletBalance(): ZIO[ByBitDsCoins, Throwable, Unit]
   def saveErrorInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit]
+  def saveFuturesData(): ZIO[ByBitDsSymbols, Throwable, Unit]
   // def savePositionInfo(): ZIO[ByBitService with DataSource with SymbolsService, Throwable, Unit]
 }
 
@@ -42,6 +43,12 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
     _         <- ZIO.foreach(symbols) { s =>
       ZIO.scoped(bbService.getOpenInterest(s.code)).provide(client).flatMap(db.saveOpenInterest(s, _))
     }
+  } yield ()
+
+  override def saveFuturesData(): ZIO[ByBitDsSymbols, Throwable, Unit] = for {
+    bbService <- ZIO.service[ByBitService]
+    //_ <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(r => ZIO.logInfo(s"Futures: count=${r.list.size} first =" + r.list.head)/*db.saveFuturesData(_)*/)
+    _ <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(db.saveFuturesData)
   } yield ()
 
   private def getKLineTopicsForInterval(
@@ -114,6 +121,8 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
         else
           ZIO.logError("Database unavailable")
     } yield ()
+
+
 }
 
 object GatherService {

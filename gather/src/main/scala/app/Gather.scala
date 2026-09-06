@@ -66,6 +66,7 @@ object Gather extends ZIOAppDefault {
 
     _ <- Saver.saveOrderBooks(conf.bybitAccount.save_order_book_freq_mins)
     _ <- Saver.saveOpenInterests(conf.bybitAccount.save_oi_freq_mins)
+    _ <- Saver.saveFuturesData(conf.bybitAccount.save_futures_data_freq_mins)
 
     _ <- runPingPongChecker(conf.bybitAccount.pp_check_freq_sec.seconds, conf.bybitAccount.pp_check_restart)
     _ <- checkRestartSaveBar.repeat(Schedule.spaced(conf.bybitAccount.check_restart_savebar_freq.seconds)).fork

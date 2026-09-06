@@ -1,58 +1,13 @@
 package postgresql
 
-import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
+import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
 import service.DatabaseService
-import bybit_model.{
-  Advice,
-  AdviceInsert,
-  AdviceMeta,
-  AdviceToUser,
-  ApiRespWalletBalance,
-  CandleInsert,
-  Coin,
-  CommonWalletBalance,
-  CurrentCandle,
-  ErrorLog,
-  InsertedCandle,
-  Interval,
-  KLine,
-  KLineInsert,
-  KLineTopic,
-  LogLevel,
-  OpenInterestInsert,
-  OpenInterestResConverter,
-  OpenInterestResult,
-  OrderBookResConverter,
-  OrderBookResult,
-  OrderBookResultConverter,
-  OrderBookResultInsert,
-  OrderBookSnapshot,
-  OrderBookSnapshotInsert,
-  OrderItemInfo,
-  OrderItemInfoInsert,
-  RefAdviceMetaInterval,
-  RefSymbolsIntervals,
-  ReglamentLog,
-  ReglamentRow,
-  Symbol,
-  SymbolAdviceProc,
-  SymbolShort,
-  SymbolSource,
-  SymbolsAdviceProc,
-  SymbolsBalance,
-  TradeAdvice,
-  TradeAdviceOrder,
-  TradeAdviceSelect,
-  TradeAdviceUpdate,
-  ViewDeepLine,
-  WalletBalanceCoinInsert,
-  WalletBalanceInsert
-}
-import io.getquill.{ Delete, EntityQuery, Insert, Ord, Query, Quoted, Update }
-import zio.{ durationInt, Ref, ZIO }
+import bybit_model.{Advice, AdviceInsert, AdviceMeta, AdviceToUser, ApiRespWalletBalance, CandleInsert, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, FuturesDataResult, FuturesDataRow, InsertedCandle, Interval, KLine, KLineInsert, KLineTopic, LogLevel, OpenInterestInsert, OpenInterestResConverter, OpenInterestResult, OrderBookResConverter, OrderBookResult, OrderBookResultConverter, OrderBookResultInsert, OrderBookSnapshot, OrderBookSnapshotInsert, OrderItemInfo, OrderItemInfoInsert, RefAdviceMetaInterval, RefSymbolsIntervals, ReglamentLog, ReglamentRow, Symbol, SymbolAdviceProc, SymbolFutures, SymbolShort, SymbolSource, SymbolsAdviceProc, SymbolsBalance, TradeAdvice, TradeAdviceOrder, TradeAdviceSelect, TradeAdviceUpdate, ViewDeepLine, WalletBalanceCoinInsert, WalletBalanceInsert}
+import io.getquill.{Delete, EntityQuery, Insert, Ord, Query, Quoted, Update}
+import zio.{Ref, ZIO, durationInt}
 import zio._
 
-import java.sql.{ SQLException, Timestamp }
+import java.sql.{SQLException, Timestamp}
 import java.time.Instant
 import java.util.concurrent.TimeoutException
 import javax.sql.DataSource
@@ -75,6 +30,10 @@ final class PostgresqlService extends DatabaseService {
 
   private val symbolSchema = quote {
     querySchema[Symbol]("data.v_symbols")
+  }
+
+  private val symbolFutures = quote {
+    querySchema[SymbolFutures]("data.symbol_futures")
   }
 
   private val symbolShort = quote {
@@ -103,6 +62,60 @@ final class PostgresqlService extends DatabaseService {
 
   private val refSymbolsIntervalsSchema = quote {
     querySchema[RefSymbolsIntervals]("data.ref_symbols_intervals")
+  }
+
+  private val FuturesDataRowSchema = quote {
+    querySchema[FuturesDataRow](
+      "data.futures_data",
+      _.idSymbol              -> "id_symbol",
+      _.lastPrice             -> "last_price",
+      _.indexPrice            -> "index_price",
+      _.markPrice             -> "mark_price",
+      _.prevPrice24h          -> "prev_price_24h",
+      _.price24hPcnt          -> "price_24h_pcnt",
+      _.highPrice24h          -> "high_price_24h",
+      _.lowPrice24h           -> "low_price_24h",
+      _.prevPrice1h           -> "prev_price_1h",
+      _.openInterest          -> "open_interest",
+      _.openInterestValue     -> "open_interest_value",
+      _.turnover24h           -> "turnover_24h",
+      _.volume24h             -> "volume_24h",
+      _.fundingRate           -> "funding_rate",
+      _.nextFundingTime       -> "next_funding_time",
+      _.ask1Size              -> "ask1_size",
+      _.bid1Price             -> "bid1_price",
+      _.ask1Price             -> "ask1_price",
+      _.bid1Size              -> "bid1_size",
+      _.fundingIntervalHour   -> "funding_interval_hour",
+      _.fundingCap            -> "funding_cap"
+    )
+  }
+
+  private val FuturesDataObservedRowSchema = quote {
+    querySchema[FuturesDataRow](
+      "data.futures_data_observed",
+      _.idSymbol              -> "id_symbol",
+      _.lastPrice             -> "last_price",
+      _.indexPrice            -> "index_price",
+      _.markPrice             -> "mark_price",
+      _.prevPrice24h          -> "prev_price_24h",
+      _.price24hPcnt          -> "price_24h_pcnt",
+      _.highPrice24h          -> "high_price_24h",
+      _.lowPrice24h           -> "low_price_24h",
+      _.prevPrice1h           -> "prev_price_1h",
+      _.openInterest          -> "open_interest",
+      _.openInterestValue     -> "open_interest_value",
+      _.turnover24h           -> "turnover_24h",
+      _.volume24h             -> "volume_24h",
+      _.fundingRate           -> "funding_rate",
+      _.nextFundingTime       -> "next_funding_time",
+      _.ask1Size              -> "ask1_size",
+      _.bid1Price             -> "bid1_price",
+      _.ask1Price             -> "ask1_price",
+      _.bid1Size              -> "bid1_size",
+      _.fundingIntervalHour   -> "funding_interval_hour",
+      _.fundingCap            -> "funding_cap"
+    )
   }
 
   private val orderBookSnapshotSchema = quote {
@@ -310,6 +323,33 @@ final class PostgresqlService extends DatabaseService {
     )
   }
 
+  private val futuresDataInsertSchema = quote {
+    querySchema[FuturesDataRow](
+      "data.futures_data",
+      _.idSymbol              -> "id_symbol",
+      _.lastPrice             -> "last_price",
+      _.indexPrice            -> "index_price",
+      _.markPrice             -> "mark_price",
+      _.prevPrice24h          -> "prev_price_24h",
+      _.price24hPcnt          -> "price_24h_pcnt",
+      _.highPrice24h          -> "high_price_24h",
+      _.lowPrice24h           -> "low_price_24h",
+      _.prevPrice1h           -> "prev_price_1h",
+      _.openInterest          -> "open_interest",
+      _.openInterestValue     -> "open_interest_value",
+      _.turnover24h           -> "turnover_24h",
+      _.volume24h             -> "volume_24h",
+      _.fundingRate           -> "funding_rate",
+      _.nextFundingTime       -> "next_funding_time",
+      _.ask1Size              -> "ask1_size",
+      _.bid1Price             -> "bid1_price",
+      _.ask1Price             -> "ask1_price",
+      _.bid1Size              -> "bid1_size",
+      _.fundingIntervalHour   -> "funding_interval_hour",
+      _.fundingCap            -> "funding_cap"
+    )
+  }
+
   override def getSymbols: ZIO[DataSource, SQLException, Set[Symbol]] =
     run(symbolSchema.filter(_.is_enabled == lift(true))).map(_.toSet)
 
@@ -432,6 +472,101 @@ final class PostgresqlService extends DatabaseService {
         }
       )
     } yield ()
+
+  override def saveFuturesData(futuresData: FuturesDataResult): ZIO[DataSource, SQLException, Unit] = for {
+    //Add new symbols if not exists in table data.symbol_futures
+    _ <- ctx.run(quote {
+      liftQuery(futuresData.list.map(_.symbol).distinct).foreach { s =>
+        symbolFutures
+          .insert(
+            _.code -> s
+          )
+          .onConflictIgnore(_.code)
+      }
+    })
+
+    symbolIdMap <- ctx.run(quote {
+      symbolFutures
+        .filter(s => liftQuery(futuresData.list.map(_.symbol).distinct).contains(s.code))
+        .map(s => s.code -> s.id)
+    }).map(_.toMap)
+
+    //only Observed symbols, store data in data.futures_data_observed
+    symbolIdObservedMap <- ctx.run(quote {
+      symbolFutures
+        .filter(s => liftQuery(futuresData.list.map(_.symbol).distinct).contains(s.code)).filter(_.isObserved)
+        .map(s => s.code -> s.id)
+    }).map(_.toMap)
+
+    rowsSymbol = futuresData.list.flatMap { fd =>
+      symbolIdMap.get(fd.symbol).map { idSymbol =>
+        FuturesDataRow.fromFuturesData(fd, idSymbol)
+      }
+    }
+
+    rowsSymbolObserved = futuresData.list.filter(fd => symbolIdObservedMap.contains(fd.symbol)).flatMap { fd =>
+      symbolIdObservedMap.get(fd.symbol).map { idSymbol =>
+        FuturesDataRow.fromFuturesData(fd, idSymbol)
+      }
+    }
+
+    _ <- ctx.run(quote {
+      liftQuery(rowsSymbolObserved).foreach { row =>
+        FuturesDataObservedRowSchema.insert(
+          _.idSymbol -> row.idSymbol,
+          _.lastPrice -> row.lastPrice,
+          _.indexPrice -> row.indexPrice,
+          _.markPrice -> row.markPrice,
+          _.prevPrice24h -> row.prevPrice24h,
+          _.price24hPcnt -> row.price24hPcnt,
+          _.highPrice24h -> row.highPrice24h,
+          _.lowPrice24h -> row.lowPrice24h,
+          _.prevPrice1h -> row.prevPrice1h,
+          _.openInterest -> row.openInterest,
+          _.openInterestValue -> row.openInterestValue,
+          _.turnover24h -> row.turnover24h,
+          _.volume24h -> row.volume24h,
+          _.fundingRate -> row.fundingRate,
+          _.nextFundingTime -> row.nextFundingTime,
+          _.ask1Size -> row.ask1Size,
+          _.bid1Price -> row.bid1Price,
+          _.ask1Price -> row.ask1Price,
+          _.bid1Size -> row.bid1Size,
+          _.fundingIntervalHour -> row.fundingIntervalHour,
+          _.fundingCap -> row.fundingCap
+        )
+      }
+    })
+
+    _ <- ctx.run(quote {
+      liftQuery(rowsSymbol).foreach { row =>
+        FuturesDataRowSchema.insert(
+          _.idSymbol -> row.idSymbol,
+          _.lastPrice -> row.lastPrice,
+          _.indexPrice -> row.indexPrice,
+          _.markPrice -> row.markPrice,
+          _.prevPrice24h -> row.prevPrice24h,
+          _.price24hPcnt -> row.price24hPcnt,
+          _.highPrice24h -> row.highPrice24h,
+          _.lowPrice24h -> row.lowPrice24h,
+          _.prevPrice1h -> row.prevPrice1h,
+          _.openInterest -> row.openInterest,
+          _.openInterestValue -> row.openInterestValue,
+          _.turnover24h -> row.turnover24h,
+          _.volume24h -> row.volume24h,
+          _.fundingRate -> row.fundingRate,
+          _.nextFundingTime -> row.nextFundingTime,
+          _.ask1Size -> row.ask1Size,
+          _.bid1Price -> row.bid1Price,
+          _.ask1Price -> row.ask1Price,
+          _.bid1Size -> row.bid1Size,
+          _.fundingIntervalHour -> row.fundingIntervalHour,
+          _.fundingCap -> row.fundingCap
+        )
+      }
+    })
+
+  } yield ()
 
   /**
    * Save data in 2 tables: data.candle or data.kline. If data is confirmed, save into data.candle with updating
@@ -916,5 +1051,6 @@ final class PostgresqlService extends DatabaseService {
     }
     ctx.run(query)
   }
+
 
 }
