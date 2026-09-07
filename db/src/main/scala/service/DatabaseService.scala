@@ -31,7 +31,7 @@ trait DatabaseService {
   // def saveTradeAdviceOrder(order: TradeAdviceOrder): ZIO[DataSource, SQLException, Unit]
   def saveOrderHistory(order: OrderItemInfoInsert): ZIO[DataSource, SQLException, Unit]
   def saveLogInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit]
-  def executeReglamentCleanup(code: String): ZIO[DataSource, SQLException, Unit]
+  def executeReglamentCleanup: ZIO[DataSource, SQLException, Unit]
   def getAdviceIntervals: ZIO[DataSource, SQLException, List[IntervalIntMins]]
   def getSymbolAdviceProcs(mins: Int): ZIO[DataSource, SQLException, List[SymbolAdviceProc]]
   def getAndSaveAdvice(sap: SymbolsAdviceProc): ZIO[DataSource, SQLException, List[AdviceId]]

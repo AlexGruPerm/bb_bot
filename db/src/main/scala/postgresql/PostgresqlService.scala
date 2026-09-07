@@ -2,7 +2,7 @@ package postgresql
 
 import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
 import service.DatabaseService
-import bybit_model.{Advice, AdviceInsert, AdviceMeta, AdviceToUser, ApiRespWalletBalance, CandleInsert, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, FuturesDataResult, FuturesDataRow, InsertedCandle, Interval, KLine, KLineInsert, KLineTopic, LogLevel, OpenInterestInsert, OpenInterestResConverter, OpenInterestResult, OrderBookResConverter, OrderBookResult, OrderBookResultConverter, OrderBookResultInsert, OrderBookSnapshot, OrderBookSnapshotInsert, OrderItemInfo, OrderItemInfoInsert, RefAdviceMetaInterval, RefSymbolsIntervals, ReglamentLog, ReglamentRow, Symbol, SymbolAdviceProc, SymbolFutures, SymbolShort, SymbolSource, SymbolsAdviceProc, SymbolsBalance, TradeAdvice, TradeAdviceOrder, TradeAdviceSelect, TradeAdviceUpdate, ViewDeepLine, WalletBalanceCoinInsert, WalletBalanceInsert}
+import bybit_model.{Advice, AdviceInsert, AdviceMeta, AdviceToUser, ApiRespWalletBalance, CandleInsert, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, FuturesDataResult, FuturesDataRow, InsertedCandle, Interval, KLine, KLineInsert, KLineTopic, LogLevel, OpenInterestInsert, OpenInterestResConverter, OpenInterestResult, OrderBookResConverter, OrderBookResult, OrderBookResultConverter, OrderBookResultInsert, OrderBookSnapshot, OrderBookSnapshotInsert, OrderItemInfo, OrderItemInfoInsert, RefAdviceMetaInterval, RefSymbolsIntervals, ReglamentLog, ReglamentMetaRow, ReglamentRow, Symbol, SymbolAdviceProc, SymbolFutures, SymbolShort, SymbolSource, SymbolsAdviceProc, SymbolsBalance, TradeAdvice, TradeAdviceOrder, TradeAdviceSelect, TradeAdviceUpdate, ViewDeepLine, WalletBalanceCoinInsert, WalletBalanceInsert}
 import io.getquill.{Delete, EntityQuery, Insert, Ord, Query, Quoted, Update}
 import zio.{Ref, ZIO, durationInt}
 import zio._
@@ -347,6 +347,28 @@ final class PostgresqlService extends DatabaseService {
       _.bid1Size              -> "bid1_size",
       _.fundingIntervalHour   -> "funding_interval_hour",
       _.fundingCap            -> "funding_cap"
+    )
+  }
+
+
+  private val reglamentMetaSchema = quote {
+    querySchema[ReglamentMetaRow](
+      "data.reglament_meta",
+      _.id         -> "id",
+      _.table_name -> "table_name",
+      _.ts_column  -> "ts_column",
+      _.keep_days  -> "keep_days",
+      _.enabled    -> "enabled"
+    ).filter(_.enabled)
+  }
+
+  val reglamentLogSchema = quote {
+    querySchema[ReglamentLog](
+      "data.reglament_log",
+      _.id           -> "id",
+      _.id_reglament -> "id_reglament",
+      _.end_ts       -> "end_ts",
+      _.deleted_rows -> "deleted_rows"
     )
   }
 
@@ -766,112 +788,44 @@ final class PostgresqlService extends DatabaseService {
     )
   } yield ()
 
-  override def executeReglamentCleanup(code: String): ZIO[DataSource, SQLException, Unit] = {
-
-    val reglamentSchema: Quoted[EntityQuery[ReglamentRow]] = quote {
-      querySchema[ReglamentRow]("data.reglament")
-        .filter(_.code == lift(code))
+  def deleteByMeta(meta: ReglamentMetaRow): ZIO[DataSource, SQLException, Long] = for {
+    _ <- ZIO.unit
+    sqlStr =
+      s"""DELETE FROM data.${meta.table_name}
+         | WHERE ${meta.ts_column} < (
+         |   SELECT max(${meta.ts_column})
+         |     - (EXTRACT(EPOCH FROM interval '1 day' * ${meta.keep_days}) * 1000)::bigint
+         |   FROM data.${meta.table_name}
+         |   WHERE ${meta.ts_column} IS NOT NULL
+         | )
+         |""".stripMargin
+    deleteAction = quote {
+      sql"#$sqlStr".as[Delete[Any]]
     }
+    delRowsCount <- ctx.run(deleteAction).tapError(err => ZIO.logError(s"SQL Error: ${err.getMessage}"))
+  } yield delRowsCount
 
-    val reglamentLogSchema = quote {
-      querySchema[ReglamentLog](
-        "data.reglament_log",
-        _.id           -> "id",
-        _.id_reglament -> "id_reglament",
-        _.end_ts       -> "end_ts",
-        _.deleted_rows -> "deleted_rows"
-      )
-    }
-
-    def deleteWalletBalance(intVal: Int): ZIO[DataSource, SQLException, Long] = {
-      val cutoff  = quote {
-        sql"""(select max(ts_bybit) - (${lift(intVal)}::bigint * 24 * 60 * 60 * 1000)
-                   from data.wallet_balance)""".as[Long]
-      }
-      val deleteQ = quote {
-        querySchema[WalletBalanceInsert]("data.wallet_balance")
-          .filter(wb => wb.ts_bybit < cutoff)
-          .delete
-      }
-      ZIO.logInfo(s"DB - deleteWalletBalance for intVal = $intVal") *>
-        run(deleteQ)
-    }
-
-    def deleteOrderBookSnapshot(intVal: Int): ZIO[DataSource, SQLException, Long] = {
-      val cutoff  = quote {
-        sql"""(select max(ts_bybit) - (${lift(intVal)}::bigint * 24 * 60 * 60 * 1000)
-                   from data.order_book_snapshot)""".as[Long]
-      }
-      val deleteQ = quote {
-        querySchema[OrderBookSnapshotInsert]("data.order_book_snapshot")
-          .filter(wb => wb.ts_bybit < cutoff)
-          .delete
-      }
-      ZIO.logInfo(s"DB - deleteOrderBookSnapshot for intVal = $intVal") *>
-        run(deleteQ)
-    }
-
-    def deleteCandle(intVal: Int): ZIO[DataSource, SQLException, Long] = {
-      val cutoff  = quote {
-        sql"""(select max(start_ts) - (${lift(intVal)}::bigint * 24 * 60 * 60 * 1000)
-                   from data.candle
-                  where start_ts is not null)""".as[Long]
-      }
-      val deleteQ = quote {
-        querySchema[CandleInsert]("data.candle")
-          .filter(wb => wb.start_ts.isDefined && wb.start_ts.getOrElse(0L) < cutoff)
-          .delete
-      }
-      ZIO.logInfo(s"DB - deleteCandle for intVal = $intVal") *>
-        run(deleteQ)
-    }
-
-    def deleteOI(intVal: Int): ZIO[DataSource, SQLException, Long] = {
-      val cutoff  = quote {
-        sql"""(select max(ts_bybit) - (${lift(intVal)}::bigint * 24 * 60 * 60 * 1000)
-                   from data.open_interest)""".as[Long]
-      }
-      val deleteQ = quote {
-        querySchema[OpenInterestInsert]("data.open_interest")
-          .filter(wb => wb.ts_bybit < cutoff)
-          .delete
-      }
-      ZIO.logInfo(s"DB - OpenInterestInsert for intVal = $intVal") *>
-        run(deleteQ)
-    }
-
+  override def executeReglamentCleanup: ZIO[DataSource, SQLException, Unit] = {
     for {
-      // reglamentParams contains just one row by input code for executeReglamentCleanup
-      _            <- ZIO.logInfo(s"executeReglamentCleanup code = $code")
-      regParameter <- run(reglamentSchema)
-        // .map(_.head)
-        .flatMap {
-          case Nil      => ZIO.fail(new SQLException(s"Multiple rows in data.reglament by filtering by code = $code"))
-          case reg :: _ => ZIO.succeed(reg)
-        }
-
-      logId <- run(
-        reglamentLogSchema
-          .insert(_.id_reglament -> lift(regParameter.id))
-          .returning(_.id)
-      )
-
-      deletedRows <- code match {
-        case "keep_wb_days"     => deleteWalletBalance(regParameter.int_val)
-        case "keep_obs_days"    => deleteOrderBookSnapshot(regParameter.int_val)
-        case "keep_candle_days" => deleteCandle(regParameter.int_val)
-        case "keep_oi_days"     => deleteOI(regParameter.int_val)
-        case _                  => ZIO.succeed(0L)
-      }
-      _           <- ZIO.logInfo(s"deletedRows = $deletedRows")
-      _           <- run(quote {
-        reglamentLogSchema
-          .filter(_.id == lift(logId))
-          .update(
-            _.end_ts       -> sql"localtimestamp".as[Option[java.sql.Timestamp]],
-            _.deleted_rows -> lift(deletedRows)
+      metaRows    <- run(reglamentMetaSchema)
+      _           <- ZIO.foreachDiscard(metaRows) { meta =>
+        for {
+          logId <- run(
+            reglamentLogSchema
+              .insert(_.id_reglament -> lift(meta.id))
+              .returning(_.id)
           )
-      })
+          deleted <- deleteByMeta(meta)
+          _       <- run(quote {
+                      reglamentLogSchema
+                        .filter(_.id == lift(logId))
+                        .update(
+                          _.end_ts       -> sql"localtimestamp".as[Option[java.sql.Timestamp]],
+                          _.deleted_rows -> lift(deleted)
+                        )
+                    })
+        } yield ()
+      }
     } yield ()
   }
 
@@ -1051,6 +1005,5 @@ final class PostgresqlService extends DatabaseService {
     }
     ctx.run(query)
   }
-
 
 }
