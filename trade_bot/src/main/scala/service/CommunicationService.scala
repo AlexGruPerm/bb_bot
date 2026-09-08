@@ -50,7 +50,7 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
           s"Invalid parameters [$args] Try /getViewDeep 15 10 (where 15 - interval, 10 - deep bars)"
         )
       // ...
-      case _  => ZIO.logInfo("[ANY] ASK in QUEUE")
+      case _                                => ZIO.logInfo("[ANY] ASK in QUEUE")
     }
   } yield ()
 

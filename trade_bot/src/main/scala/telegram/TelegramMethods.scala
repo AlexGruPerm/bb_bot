@@ -1,7 +1,7 @@
 package telegram
 
 import app.UserId
-import bybit_model.{AdviceToUser, AdviceToUserKey, CommonWalletBalance, SymbolsBalance, ViewDeepLine }
+import bybit_model.{ AdviceToUser, AdviceToUserKey, CommonWalletBalance, SymbolsBalance, ViewDeepLine }
 import com.bot4s.telegram.cats.TelegramBot
 import com.bot4s.telegram.methods.{ ParseMode, SendMessage }
 import com.bot4s.telegram.models.User
@@ -56,7 +56,7 @@ trait TelegramMethods {
                    |</pre>
                    |""".stripMargin)
 
-  private val formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
+  private val formatter                                                                        = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
   private def formatSavedAdvice(advice: Map[AdviceToUserKey, List[AdviceToUser]]): UIO[String] =
     ZIO.succeed(
       advice.map { case (k, v) =>

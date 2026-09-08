@@ -47,8 +47,8 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
 
   override def saveFuturesData(): ZIO[ByBitDsSymbols, Throwable, Unit] = for {
     bbService <- ZIO.service[ByBitService]
-    //_ <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(r => ZIO.logInfo(s"Futures: count=${r.list.size} first =" + r.list.head)/*db.saveFuturesData(_)*/)
-    _ <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(db.saveFuturesData)
+    // _ <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(r => ZIO.logInfo(s"Futures: count=${r.list.size} first =" + r.list.head)/*db.saveFuturesData(_)*/)
+    _         <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(db.saveFuturesData)
   } yield ()
 
   private def getKLineTopicsForInterval(
@@ -121,7 +121,6 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
         else
           ZIO.logError("Database unavailable")
     } yield ()
-
 
 }
 

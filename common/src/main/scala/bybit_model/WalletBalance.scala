@@ -50,7 +50,6 @@ case class WalletBalanceEntity(
     )
 }
 
-
 case class RawWalletBalanceEntity(
   totalEquity: Double,
   totalInitialMargin: Option[String],

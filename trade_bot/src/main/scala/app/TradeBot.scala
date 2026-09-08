@@ -16,13 +16,13 @@ import service.{
   TraderService
 }
 import services.{ CoinService, SymbolsService }
-import zio.{Scope, ZIO, ZIOAppArgs, ZIOAppDefault }
+import zio.{ Scope, ZIO, ZIOAppArgs, ZIOAppDefault }
 
 object TradeBot extends ZIOAppDefault {
 
   private val MainApp: ZIO[TraderAppEnvs, Throwable, Unit] = for {
-    _       <- ZIO.logInfo(s"Begin ByBit TradeBot.")
-    _       <- ZIO.serviceWithZIO[AppConfig](conf => ZIO.logInfo(conf.toString))
+    _ <- ZIO.logInfo(s"Begin ByBit TradeBot.")
+    _ <- ZIO.serviceWithZIO[AppConfig](conf => ZIO.logInfo(conf.toString))
 
     db      <- ZIO.service[DatabaseService]
     symbols <- db.getSymbols
@@ -34,7 +34,7 @@ object TradeBot extends ZIOAppDefault {
     _ <- ZIO.logInfo(s"Total symbols = [${symbols.size}] tradable = [${symbols.count(_.is_tradable)}]")
 
     adviceIntervals <- db.getAdviceIntervals
-    _ <- AdvisorService.runAdvisorForIntervals(adviceIntervals)
+    _               <- AdvisorService.runAdvisorForIntervals(adviceIntervals)
 
     _ <- ZIO.serviceWithZIO[TelegramService](_.run())
     _ <- ZIO.serviceWithZIO[CommunicationService](_.runConsumer)
@@ -46,7 +46,7 @@ object TradeBot extends ZIOAppDefault {
         .repeat(Schedule.spaced(1.seconds))
         .fork
     }
-    */
+     */
   } yield ()
 
   def run: ZIO[ZIOAppArgs with Scope, Any, Any] = for {

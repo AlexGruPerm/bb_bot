@@ -55,8 +55,8 @@ object Saver {
     logLevelId <- ZIO.serviceWithZIO[LogLevelService](_.findByCode("error"))
     _          <- ZIO.serviceWithZIO[GatherService](
       _.saveFuturesData().catchSome {
-          ErrorHandlers.logPF(logLevelId.id, module, "saveFuturesData")
-        }
+        ErrorHandlers.logPF(logLevelId.id, module, "saveFuturesData")
+      }
         .repeat(Schedule.spaced(repeat_interval_mins.minutes))
         .fork
     )

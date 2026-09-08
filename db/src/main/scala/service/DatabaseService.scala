@@ -1,10 +1,32 @@
 package service
 
-import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
-import bybit_model.{AdviceToUser, ApiRespWalletBalance, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, FuturesDataResult, KLine, KLineTopic, LogLevel, OpenInterestResult, OrderBookResult, OrderItemInfoInsert, RefSymbolsIntervals, Symbol, SymbolAdviceProc, SymbolsAdviceProc, SymbolsBalance, TradeAdviceOrder, TradeAdviceSelect, ViewDeepLine}
-import conf.{Postgresql, _}
-import postgresql.{PostgresDatasource, PostgresqlService}
-import zio.{Ref, ZIO, ZLayer}
+import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
+import bybit_model.{
+  AdviceToUser,
+  ApiRespWalletBalance,
+  Coin,
+  CommonWalletBalance,
+  CurrentCandle,
+  ErrorLog,
+  FuturesDataResult,
+  KLine,
+  KLineTopic,
+  LogLevel,
+  OpenInterestResult,
+  OrderBookResult,
+  OrderItemInfoInsert,
+  RefSymbolsIntervals,
+  Symbol,
+  SymbolAdviceProc,
+  SymbolsAdviceProc,
+  SymbolsBalance,
+  TradeAdviceOrder,
+  TradeAdviceSelect,
+  ViewDeepLine
+}
+import conf.{ Postgresql, _ }
+import postgresql.{ PostgresDatasource, PostgresqlService }
+import zio.{ Ref, ZIO, ZLayer }
 
 import java.sql.SQLException
 import javax.sql.DataSource

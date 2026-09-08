@@ -16,8 +16,8 @@ trait TraderService {
   /**
    * Get last trade advice from db. (and mark it as taken)
    */
-  //def getTradeAdvice(symbol: Symbol): ZIO[ByBitDsSymbol, Throwable, Option[TradeAdviceSelect]]
-  //def saveTradeAdviceOrder(taOrder: TradeAdviceOrder): ZIO[ByBitDsSymbol, SQLException, Unit]
+  // def getTradeAdvice(symbol: Symbol): ZIO[ByBitDsSymbol, Throwable, Option[TradeAdviceSelect]]
+  // def saveTradeAdviceOrder(taOrder: TradeAdviceOrder): ZIO[ByBitDsSymbol, SQLException, Unit]
   def openOrder(advice: TradeAdvice): ZIO[ByBitDsSymbol, Throwable, createdOrder]
   def getOrderHistoryInfo(orderId: OrderID): ZIO[ByBitDsSymbol, Throwable, OrderItemInfo]
   def saveOrderHistory(order: OrderItemInfo): ZIO[ByBitDsSymbol, SQLException, Unit]
@@ -38,7 +38,7 @@ final class TraderServiceLive(db: DatabaseService) extends TraderService {
       _ <- ZIO.logInfo(taOrder.debug).when(taOrder.id_trade_advice != 0L)
       _ <- db.saveTradeAdviceOrder(taOrder)
     } yield ()
-  */
+   */
 
   override def openOrder(advice: TradeAdvice): ZIO[ByBitDsSymbol, Throwable, createdOrder] =
     for {
@@ -51,8 +51,6 @@ final class TraderServiceLive(db: DatabaseService) extends TraderService {
       bbService  <- ZIO.service[ByBitService]
       ordHistory <- ZIO.scoped(bbService.getOrderHistInfo(orderId)).provide(client)
     } yield ordHistory.result.list.head
-
-
 
   override def saveOrderHistory(order: OrderItemInfo): ZIO[ByBitDsSymbol, SQLException, Unit] = for {
     _          <- ZIO.logInfo(s"TraderService.saveOrderHistory orderId = ${order.orderId}")

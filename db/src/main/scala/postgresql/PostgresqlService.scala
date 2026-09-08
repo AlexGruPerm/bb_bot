@@ -1,13 +1,62 @@
 package postgresql
 
-import bybit_model.Types.{AdviceId, IntervalIntMins, SymbolId}
+import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
 import service.DatabaseService
-import bybit_model.{Advice, AdviceInsert, AdviceMeta, AdviceToUser, ApiRespWalletBalance, CandleInsert, Coin, CommonWalletBalance, CurrentCandle, ErrorLog, FuturesDataResult, FuturesDataRow, InsertedCandle, Interval, KLine, KLineInsert, KLineTopic, LogLevel, OpenInterestInsert, OpenInterestResConverter, OpenInterestResult, OrderBookResConverter, OrderBookResult, OrderBookResultConverter, OrderBookResultInsert, OrderBookSnapshot, OrderBookSnapshotInsert, OrderItemInfo, OrderItemInfoInsert, RefAdviceMetaInterval, RefSymbolsIntervals, ReglamentLog, ReglamentMetaRow, ReglamentRow, Symbol, SymbolAdviceProc, SymbolFutures, SymbolShort, SymbolSource, SymbolsAdviceProc, SymbolsBalance, TradeAdvice, TradeAdviceOrder, TradeAdviceSelect, TradeAdviceUpdate, ViewDeepLine, WalletBalanceCoinInsert, WalletBalanceInsert}
-import io.getquill.{Delete, EntityQuery, Insert, Ord, Query, Quoted, Update}
-import zio.{Ref, ZIO, durationInt}
+import bybit_model.{
+  Advice,
+  AdviceInsert,
+  AdviceMeta,
+  AdviceToUser,
+  ApiRespWalletBalance,
+  CandleInsert,
+  Coin,
+  CommonWalletBalance,
+  CurrentCandle,
+  ErrorLog,
+  FuturesDataResult,
+  FuturesDataRow,
+  InsertedCandle,
+  Interval,
+  KLine,
+  KLineInsert,
+  KLineTopic,
+  LogLevel,
+  OpenInterestInsert,
+  OpenInterestResConverter,
+  OpenInterestResult,
+  OrderBookResConverter,
+  OrderBookResult,
+  OrderBookResultConverter,
+  OrderBookResultInsert,
+  OrderBookSnapshot,
+  OrderBookSnapshotInsert,
+  OrderItemInfo,
+  OrderItemInfoInsert,
+  RefAdviceMetaInterval,
+  RefSymbolsIntervals,
+  ReglamentLog,
+  ReglamentMetaRow,
+  ReglamentRow,
+  Symbol,
+  SymbolAdviceProc,
+  SymbolFutures,
+  SymbolShort,
+  SymbolSource,
+  SymbolsAdviceProc,
+  SymbolsBalance,
+  TradeAdvice,
+  TradeAdviceOrder,
+  TradeAdviceSelect,
+  TradeAdviceUpdate,
+  ViewDeepLine,
+  WalletBalanceCoinInsert,
+  WalletBalanceInsert
+}
+import io.getquill.{ Delete, EntityQuery, Insert, Ord, Query, Quoted, Update }
+import zio.{ durationInt, Ref, ZIO }
 import zio._
 
-import java.sql.{SQLException, Timestamp}
+import java.sql.{ SQLException, Timestamp }
 import java.time.Instant
 import java.util.concurrent.TimeoutException
 import javax.sql.DataSource
@@ -67,54 +116,54 @@ final class PostgresqlService extends DatabaseService {
   private val FuturesDataRowSchema = quote {
     querySchema[FuturesDataRow](
       "data.futures_data",
-      _.idSymbol              -> "id_symbol",
-      _.lastPrice             -> "last_price",
-      _.indexPrice            -> "index_price",
-      _.markPrice             -> "mark_price",
-      _.prevPrice24h          -> "prev_price_24h",
-      _.price24hPcnt          -> "price_24h_pcnt",
-      _.highPrice24h          -> "high_price_24h",
-      _.lowPrice24h           -> "low_price_24h",
-      _.prevPrice1h           -> "prev_price_1h",
-      _.openInterest          -> "open_interest",
-      _.openInterestValue     -> "open_interest_value",
-      _.turnover24h           -> "turnover_24h",
-      _.volume24h             -> "volume_24h",
-      _.fundingRate           -> "funding_rate",
-      _.nextFundingTime       -> "next_funding_time",
-      _.ask1Size              -> "ask1_size",
-      _.bid1Price             -> "bid1_price",
-      _.ask1Price             -> "ask1_price",
-      _.bid1Size              -> "bid1_size",
-      _.fundingIntervalHour   -> "funding_interval_hour",
-      _.fundingCap            -> "funding_cap"
+      _.idSymbol            -> "id_symbol",
+      _.lastPrice           -> "last_price",
+      _.indexPrice          -> "index_price",
+      _.markPrice           -> "mark_price",
+      _.prevPrice24h        -> "prev_price_24h",
+      _.price24hPcnt        -> "price_24h_pcnt",
+      _.highPrice24h        -> "high_price_24h",
+      _.lowPrice24h         -> "low_price_24h",
+      _.prevPrice1h         -> "prev_price_1h",
+      _.openInterest        -> "open_interest",
+      _.openInterestValue   -> "open_interest_value",
+      _.turnover24h         -> "turnover_24h",
+      _.volume24h           -> "volume_24h",
+      _.fundingRate         -> "funding_rate",
+      _.nextFundingTime     -> "next_funding_time",
+      _.ask1Size            -> "ask1_size",
+      _.bid1Price           -> "bid1_price",
+      _.ask1Price           -> "ask1_price",
+      _.bid1Size            -> "bid1_size",
+      _.fundingIntervalHour -> "funding_interval_hour",
+      _.fundingCap          -> "funding_cap"
     )
   }
 
   private val FuturesDataObservedRowSchema = quote {
     querySchema[FuturesDataRow](
       "data.futures_data_observed",
-      _.idSymbol              -> "id_symbol",
-      _.lastPrice             -> "last_price",
-      _.indexPrice            -> "index_price",
-      _.markPrice             -> "mark_price",
-      _.prevPrice24h          -> "prev_price_24h",
-      _.price24hPcnt          -> "price_24h_pcnt",
-      _.highPrice24h          -> "high_price_24h",
-      _.lowPrice24h           -> "low_price_24h",
-      _.prevPrice1h           -> "prev_price_1h",
-      _.openInterest          -> "open_interest",
-      _.openInterestValue     -> "open_interest_value",
-      _.turnover24h           -> "turnover_24h",
-      _.volume24h             -> "volume_24h",
-      _.fundingRate           -> "funding_rate",
-      _.nextFundingTime       -> "next_funding_time",
-      _.ask1Size              -> "ask1_size",
-      _.bid1Price             -> "bid1_price",
-      _.ask1Price             -> "ask1_price",
-      _.bid1Size              -> "bid1_size",
-      _.fundingIntervalHour   -> "funding_interval_hour",
-      _.fundingCap            -> "funding_cap"
+      _.idSymbol            -> "id_symbol",
+      _.lastPrice           -> "last_price",
+      _.indexPrice          -> "index_price",
+      _.markPrice           -> "mark_price",
+      _.prevPrice24h        -> "prev_price_24h",
+      _.price24hPcnt        -> "price_24h_pcnt",
+      _.highPrice24h        -> "high_price_24h",
+      _.lowPrice24h         -> "low_price_24h",
+      _.prevPrice1h         -> "prev_price_1h",
+      _.openInterest        -> "open_interest",
+      _.openInterestValue   -> "open_interest_value",
+      _.turnover24h         -> "turnover_24h",
+      _.volume24h           -> "volume_24h",
+      _.fundingRate         -> "funding_rate",
+      _.nextFundingTime     -> "next_funding_time",
+      _.ask1Size            -> "ask1_size",
+      _.bid1Price           -> "bid1_price",
+      _.ask1Price           -> "ask1_price",
+      _.bid1Size            -> "bid1_size",
+      _.fundingIntervalHour -> "funding_interval_hour",
+      _.fundingCap          -> "funding_cap"
     )
   }
 
@@ -326,30 +375,29 @@ final class PostgresqlService extends DatabaseService {
   private val futuresDataInsertSchema = quote {
     querySchema[FuturesDataRow](
       "data.futures_data",
-      _.idSymbol              -> "id_symbol",
-      _.lastPrice             -> "last_price",
-      _.indexPrice            -> "index_price",
-      _.markPrice             -> "mark_price",
-      _.prevPrice24h          -> "prev_price_24h",
-      _.price24hPcnt          -> "price_24h_pcnt",
-      _.highPrice24h          -> "high_price_24h",
-      _.lowPrice24h           -> "low_price_24h",
-      _.prevPrice1h           -> "prev_price_1h",
-      _.openInterest          -> "open_interest",
-      _.openInterestValue     -> "open_interest_value",
-      _.turnover24h           -> "turnover_24h",
-      _.volume24h             -> "volume_24h",
-      _.fundingRate           -> "funding_rate",
-      _.nextFundingTime       -> "next_funding_time",
-      _.ask1Size              -> "ask1_size",
-      _.bid1Price             -> "bid1_price",
-      _.ask1Price             -> "ask1_price",
-      _.bid1Size              -> "bid1_size",
-      _.fundingIntervalHour   -> "funding_interval_hour",
-      _.fundingCap            -> "funding_cap"
+      _.idSymbol            -> "id_symbol",
+      _.lastPrice           -> "last_price",
+      _.indexPrice          -> "index_price",
+      _.markPrice           -> "mark_price",
+      _.prevPrice24h        -> "prev_price_24h",
+      _.price24hPcnt        -> "price_24h_pcnt",
+      _.highPrice24h        -> "high_price_24h",
+      _.lowPrice24h         -> "low_price_24h",
+      _.prevPrice1h         -> "prev_price_1h",
+      _.openInterest        -> "open_interest",
+      _.openInterestValue   -> "open_interest_value",
+      _.turnover24h         -> "turnover_24h",
+      _.volume24h           -> "volume_24h",
+      _.fundingRate         -> "funding_rate",
+      _.nextFundingTime     -> "next_funding_time",
+      _.ask1Size            -> "ask1_size",
+      _.bid1Price           -> "bid1_price",
+      _.ask1Price           -> "ask1_price",
+      _.bid1Size            -> "bid1_size",
+      _.fundingIntervalHour -> "funding_interval_hour",
+      _.fundingCap          -> "funding_cap"
     )
   }
-
 
   private val reglamentMetaSchema = quote {
     querySchema[ReglamentMetaRow](
@@ -496,7 +544,7 @@ final class PostgresqlService extends DatabaseService {
     } yield ()
 
   override def saveFuturesData(futuresData: FuturesDataResult): ZIO[DataSource, SQLException, Unit] = for {
-    //Add new symbols if not exists in table data.symbol_futures
+    // Add new symbols if not exists in table data.symbol_futures
     _ <- ctx.run(quote {
       liftQuery(futuresData.list.map(_.symbol).distinct).foreach { s =>
         symbolFutures
@@ -507,18 +555,23 @@ final class PostgresqlService extends DatabaseService {
       }
     })
 
-    symbolIdMap <- ctx.run(quote {
-      symbolFutures
-        .filter(s => liftQuery(futuresData.list.map(_.symbol).distinct).contains(s.code))
-        .map(s => s.code -> s.id)
-    }).map(_.toMap)
+    symbolIdMap <- ctx
+      .run(quote {
+        symbolFutures
+          .filter(s => liftQuery(futuresData.list.map(_.symbol).distinct).contains(s.code))
+          .map(s => s.code -> s.id)
+      })
+      .map(_.toMap)
 
-    //only Observed symbols, store data in data.futures_data_observed
-    symbolIdObservedMap <- ctx.run(quote {
-      symbolFutures
-        .filter(s => liftQuery(futuresData.list.map(_.symbol).distinct).contains(s.code)).filter(_.isObserved)
-        .map(s => s.code -> s.id)
-    }).map(_.toMap)
+    // only Observed symbols, store data in data.futures_data_observed
+    symbolIdObservedMap <- ctx
+      .run(quote {
+        symbolFutures
+          .filter(s => liftQuery(futuresData.list.map(_.symbol).distinct).contains(s.code))
+          .filter(_.isObserved)
+          .map(s => s.code -> s.id)
+      })
+      .map(_.toMap)
 
     rowsSymbol = futuresData.list.flatMap { fd =>
       symbolIdMap.get(fd.symbol).map { idSymbol =>
@@ -535,27 +588,27 @@ final class PostgresqlService extends DatabaseService {
     _ <- ctx.run(quote {
       liftQuery(rowsSymbolObserved).foreach { row =>
         FuturesDataObservedRowSchema.insert(
-          _.idSymbol -> row.idSymbol,
-          _.lastPrice -> row.lastPrice,
-          _.indexPrice -> row.indexPrice,
-          _.markPrice -> row.markPrice,
-          _.prevPrice24h -> row.prevPrice24h,
-          _.price24hPcnt -> row.price24hPcnt,
-          _.highPrice24h -> row.highPrice24h,
-          _.lowPrice24h -> row.lowPrice24h,
-          _.prevPrice1h -> row.prevPrice1h,
-          _.openInterest -> row.openInterest,
-          _.openInterestValue -> row.openInterestValue,
-          _.turnover24h -> row.turnover24h,
-          _.volume24h -> row.volume24h,
-          _.fundingRate -> row.fundingRate,
-          _.nextFundingTime -> row.nextFundingTime,
-          _.ask1Size -> row.ask1Size,
-          _.bid1Price -> row.bid1Price,
-          _.ask1Price -> row.ask1Price,
-          _.bid1Size -> row.bid1Size,
+          _.idSymbol            -> row.idSymbol,
+          _.lastPrice           -> row.lastPrice,
+          _.indexPrice          -> row.indexPrice,
+          _.markPrice           -> row.markPrice,
+          _.prevPrice24h        -> row.prevPrice24h,
+          _.price24hPcnt        -> row.price24hPcnt,
+          _.highPrice24h        -> row.highPrice24h,
+          _.lowPrice24h         -> row.lowPrice24h,
+          _.prevPrice1h         -> row.prevPrice1h,
+          _.openInterest        -> row.openInterest,
+          _.openInterestValue   -> row.openInterestValue,
+          _.turnover24h         -> row.turnover24h,
+          _.volume24h           -> row.volume24h,
+          _.fundingRate         -> row.fundingRate,
+          _.nextFundingTime     -> row.nextFundingTime,
+          _.ask1Size            -> row.ask1Size,
+          _.bid1Price           -> row.bid1Price,
+          _.ask1Price           -> row.ask1Price,
+          _.bid1Size            -> row.bid1Size,
           _.fundingIntervalHour -> row.fundingIntervalHour,
-          _.fundingCap -> row.fundingCap
+          _.fundingCap          -> row.fundingCap
         )
       }
     })
@@ -563,27 +616,27 @@ final class PostgresqlService extends DatabaseService {
     _ <- ctx.run(quote {
       liftQuery(rowsSymbol).foreach { row =>
         FuturesDataRowSchema.insert(
-          _.idSymbol -> row.idSymbol,
-          _.lastPrice -> row.lastPrice,
-          _.indexPrice -> row.indexPrice,
-          _.markPrice -> row.markPrice,
-          _.prevPrice24h -> row.prevPrice24h,
-          _.price24hPcnt -> row.price24hPcnt,
-          _.highPrice24h -> row.highPrice24h,
-          _.lowPrice24h -> row.lowPrice24h,
-          _.prevPrice1h -> row.prevPrice1h,
-          _.openInterest -> row.openInterest,
-          _.openInterestValue -> row.openInterestValue,
-          _.turnover24h -> row.turnover24h,
-          _.volume24h -> row.volume24h,
-          _.fundingRate -> row.fundingRate,
-          _.nextFundingTime -> row.nextFundingTime,
-          _.ask1Size -> row.ask1Size,
-          _.bid1Price -> row.bid1Price,
-          _.ask1Price -> row.ask1Price,
-          _.bid1Size -> row.bid1Size,
+          _.idSymbol            -> row.idSymbol,
+          _.lastPrice           -> row.lastPrice,
+          _.indexPrice          -> row.indexPrice,
+          _.markPrice           -> row.markPrice,
+          _.prevPrice24h        -> row.prevPrice24h,
+          _.price24hPcnt        -> row.price24hPcnt,
+          _.highPrice24h        -> row.highPrice24h,
+          _.lowPrice24h         -> row.lowPrice24h,
+          _.prevPrice1h         -> row.prevPrice1h,
+          _.openInterest        -> row.openInterest,
+          _.openInterestValue   -> row.openInterestValue,
+          _.turnover24h         -> row.turnover24h,
+          _.volume24h           -> row.volume24h,
+          _.fundingRate         -> row.fundingRate,
+          _.nextFundingTime     -> row.nextFundingTime,
+          _.ask1Size            -> row.ask1Size,
+          _.bid1Price           -> row.bid1Price,
+          _.ask1Price           -> row.ask1Price,
+          _.bid1Size            -> row.bid1Size,
           _.fundingIntervalHour -> row.fundingIntervalHour,
-          _.fundingCap -> row.fundingCap
+          _.fundingCap          -> row.fundingCap
         )
       }
     })
@@ -805,10 +858,10 @@ final class PostgresqlService extends DatabaseService {
     }
     delRowsCount <- ctx.run(deleteAction).tapError(err => ZIO.logError(s"SQL Error: ${err.getMessage}"))
   } yield delRowsCount
-  */
+   */
   def deleteByMeta(meta: ReglamentMetaRow): ZIO[DataSource, SQLException, Long] = for {
-    _ <- ZIO.unit
-    sqlStr =
+    _            <- ZIO.unit
+    sqlStr        =
       s"""DELETE FROM data.${meta.table_name}
          | WHERE ts_db < (
          |   SELECT max(ts_db)
@@ -817,35 +870,34 @@ final class PostgresqlService extends DatabaseService {
          |   WHERE ts_db IS NOT NULL
          | )
          |""".stripMargin
-    deleteAction = quote {
+    deleteAction  = quote {
       sql"#$sqlStr".as[Delete[Any]]
     }
     delRowsCount <- ctx.run(deleteAction).tapError(err => ZIO.logError(s"SQL Error: ${err.getMessage}"))
   } yield delRowsCount
 
-  override def executeReglamentCleanup: ZIO[DataSource, SQLException, Unit] = {
+  override def executeReglamentCleanup: ZIO[DataSource, SQLException, Unit] =
     for {
-      metaRows    <- run(reglamentMetaSchema)
-      _           <- ZIO.foreachDiscard(metaRows) { meta =>
+      metaRows <- run(reglamentMetaSchema)
+      _        <- ZIO.foreachDiscard(metaRows) { meta =>
         for {
-          logId <- run(
+          logId   <- run(
             reglamentLogSchema
               .insert(_.id_reglament -> lift(meta.id))
               .returning(_.id)
           )
           deleted <- deleteByMeta(meta)
           _       <- run(quote {
-                      reglamentLogSchema
-                        .filter(_.id == lift(logId))
-                        .update(
-                          _.end_ts       -> sql"localtimestamp".as[Option[java.sql.Timestamp]],
-                          _.deleted_rows -> lift(deleted)
-                        )
-                    })
+            reglamentLogSchema
+              .filter(_.id == lift(logId))
+              .update(
+                _.end_ts       -> sql"localtimestamp".as[Option[java.sql.Timestamp]],
+                _.deleted_rows -> lift(deleted)
+              )
+          })
         } yield ()
       }
     } yield ()
-  }
 
   def getSymbolAdviceProcs(mins: Int): ZIO[DataSource, SQLException, List[SymbolAdviceProc]] = {
     val q = quote {
