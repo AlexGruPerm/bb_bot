@@ -788,6 +788,7 @@ final class PostgresqlService extends DatabaseService {
     )
   } yield ()
 
+  /*
   def deleteByMeta(meta: ReglamentMetaRow): ZIO[DataSource, SQLException, Long] = for {
     _ <- ZIO.unit
     sqlStr =
@@ -797,6 +798,23 @@ final class PostgresqlService extends DatabaseService {
          |     - (EXTRACT(EPOCH FROM interval '1 day' * ${meta.keep_days}) * 1000)::bigint
          |   FROM data.${meta.table_name}
          |   WHERE ${meta.ts_column} IS NOT NULL
+         | )
+         |""".stripMargin
+    deleteAction = quote {
+      sql"#$sqlStr".as[Delete[Any]]
+    }
+    delRowsCount <- ctx.run(deleteAction).tapError(err => ZIO.logError(s"SQL Error: ${err.getMessage}"))
+  } yield delRowsCount
+  */
+  def deleteByMeta(meta: ReglamentMetaRow): ZIO[DataSource, SQLException, Long] = for {
+    _ <- ZIO.unit
+    sqlStr =
+      s"""DELETE FROM data.${meta.table_name}
+         | WHERE ts_db < (
+         |   SELECT max(ts_db)
+         |     - interval '1 day' * ${meta.keep_days}
+         |   FROM data.${meta.table_name}
+         |   WHERE ts_db IS NOT NULL
          | )
          |""".stripMargin
     deleteAction = quote {

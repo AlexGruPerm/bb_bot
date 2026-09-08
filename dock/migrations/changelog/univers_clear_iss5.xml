@@ -25,11 +25,14 @@
           comment on column data.reglament_meta.keep_days is 'part of day - epoch from interval 1 day * keep_days. 1 = 1 day, 1/24= 1 hour';
 
           -- use: 1.0/24/60 for 1 minute uterval
-          insert into data.reglament_meta (table_name, ts_column, keep_days) values
-              ('wallet_balance',      'ts_bybit', 1.0),
-              ('order_book_snapshot', 'ts_bybit', 1.0),
-              ('candle',              'start_ts', 1.0),
-              ('open_interest',       'ts_bybit', 1.0);
+            insert into data.reglament_meta (table_name, ts_column, keep_days) values
+                ('wallet_balance',       'ts_db', 120.0),
+                ('order_book_snapshot',  'ts_db', 10.0),
+                ('candle',               'ts_db', 10.0),
+                ('futures_data',         'ts_db', 2.0),
+                ('futures_data_observed','ts_db', 10.0),
+                ('open_interest',        'ts_db', 10.0);
+
         </sql>
         <comment>New table for reglamnet meta</comment>
     </changeSet>
