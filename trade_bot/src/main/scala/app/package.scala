@@ -7,7 +7,8 @@ import service.{
   DatabaseService,
   ReglamentService,
   TelegramService,
-  TraderService
+  TraderService,
+  UsersService
 }
 import services.{ CoinService, SymbolsService }
 import zio.ZIO
@@ -30,6 +31,7 @@ package object app {
     with CommunicationService
     with ReglamentService
     with AdvisorService
+    with UsersService
 
   type ZioDBsSQLExc     = ZIO[DatabaseService with DataSource, SQLException, Unit]
   type ZioDBsReglSQLExc = ZIO[DatabaseService with ReglamentService with DataSource, SQLException, Unit]

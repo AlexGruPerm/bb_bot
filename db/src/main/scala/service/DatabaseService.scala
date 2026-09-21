@@ -7,6 +7,7 @@ import bybit_model.{
   Coin,
   CommonWalletBalance,
   CurrentCandle,
+  DbUser,
   ErrorLog,
   FuturesDataResult,
   KLine,
@@ -20,11 +21,13 @@ import bybit_model.{
   SymbolAdviceProc,
   SymbolsAdviceProc,
   SymbolsBalance,
+  TgCommandLog,
   TradeAdviceOrder,
   TradeAdviceSelect,
+  UsersInsert,
   ViewDeepLine
 }
-import conf.{ Postgresql, _ }
+import conf._
 import postgresql.{ PostgresDatasource, PostgresqlService }
 import zio.{ Ref, ZIO, ZLayer }
 
@@ -59,6 +62,9 @@ trait DatabaseService {
   def getAndSaveAdvice(sap: SymbolsAdviceProc): ZIO[DataSource, SQLException, List[AdviceId]]
   def getAllAdvice(): ZIO[DataSource, SQLException, List[AdviceToUser]]
   def getViewDeep(interval: String, deep_bars: Int): ZIO[DataSource, SQLException, List[ViewDeepLine]]
+  def getUsers: ZIO[DataSource, SQLException, List[DbUser]]
+  def upsertUser(user: UsersInsert): ZIO[DataSource, SQLException, Unit]
+  def saveTgCommandLog(idUser: Int, command: String): ZIO[DataSource, SQLException, Unit]
 }
 
 object DatabaseService {

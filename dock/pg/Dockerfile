@@ -13,7 +13,7 @@ RUN apt-get update \
     && apt-get install -y vim \
     && apt-get install -y libevent-dev \
     && apt-get install -y git \
-    && apt-get install -y libaio1 \
+    && apt-get install -y libaio1t64 \
     && apt-get install -y iputils-ping \
     && apt-get install -y telnet \
     && apt-get install -y procps \

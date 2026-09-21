@@ -7,7 +7,7 @@ case class TelegramConfig(
   keyStorePassword: String,
   pubcertpath: String,
   p12certpath: String,
-  users: List[Long]
+  usersRefreshMins: Int
 ) {
   override def toString: String =
     s"""
@@ -16,7 +16,7 @@ case class TelegramConfig(
        | token        : ******
        | webhookUrl   : $webhookUrl
        | pubcertpath  : $pubcertpath
-       | users count  : ${users.size}
+       | users count  : ******
        |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
        |""".stripMargin
 }

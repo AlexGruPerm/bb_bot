@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.users.xml">
+
+    <changeSet id="2026_09_21-1-create-users" author="yakushev">
+        <sql>
+          create table data.users(
+           id                          serial4 NOT NULL,
+           user_id                     int8 NOT NULL,
+           is_bot                      boolean NOT NULL DEFAULT false,
+           first_name                  varchar(256) NOT NULL,
+           last_name                   varchar(256),
+           username                    varchar(256),
+           language_code               varchar(16),
+           is_premium                  boolean,
+           added_to_attachment_menu    boolean,
+           can_join_groups             boolean,
+           can_read_all_group_messages boolean,
+           supports_inline_queries     boolean,
+           is_admin                    boolean NOT NULL DEFAULT false,
+           ts_db_begin                 timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           ts_db_end                   timestamp,
+           constraint users_pkey PRIMARY KEY (id),
+           constraint uk_users_user_id UNIQUE (user_id)
+          );
+        </sql>
+        <comment>Create table users</comment>
+    </changeSet>
+
+</databaseChangeLog>

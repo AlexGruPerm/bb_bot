@@ -13,7 +13,8 @@ import service.{
   Datasource,
   ReglamentService,
   TelegramService,
-  TraderService
+  TraderService,
+  UsersService
 }
 import services.{ CoinService, SymbolsService }
 import zio.{ Scope, ZIO, ZIOAppArgs, ZIOAppDefault }
@@ -60,6 +61,7 @@ object TradeBot extends ZIOAppDefault {
         SymbolsService.layer,
         CoinService.layer,
         TraderService.live,
+        UsersService.live,
         TelegramService.live,
         AskQueueService.live,
         CommunicationService.live,

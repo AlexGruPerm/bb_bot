@@ -1,11 +1,11 @@
 package telegram
 
-import app.UserId
 import bybit_model.{ AdviceToUser, AdviceToUserKey, CommonWalletBalance, SymbolsBalance, ViewDeepLine }
 import com.bot4s.telegram.cats.TelegramBot
 import com.bot4s.telegram.methods.{ ParseMode, SendMessage }
 import com.bot4s.telegram.models.User
 import model.Ask
+import service.UsersService
 import zio.{ Task, UIO, ZIO }
 
 import java.time.format.DateTimeFormatter
@@ -14,7 +14,7 @@ import scala.math.BigDecimal.double2bigDecimal
 trait TelegramMethods {
   self: TelegramBot[Task] =>
 
-  def usersId: List[UserId]
+  def usersService: UsersService
 
   private val double2str: Double => String = d => d.setScale(2, BigDecimal.RoundingMode.HALF_UP).toString()
 
@@ -72,7 +72,7 @@ trait TelegramMethods {
               s"   ${a.advice} "
           }.mkString("\n")}
            |</pre>
-           |/getBalance
+           |/help
            |""".stripMargin
       }.mkString("\n")
     )
@@ -103,6 +103,20 @@ trait TelegramMethods {
                    |
                    |Main bot commands:
                    |
+                   |/getViewDeep X Y     - where X - interval in minutes, Y - deep bars
+                   |/gvd X Y             - alias for getViewDeep
+                   |/getViewDeep_15_10   - Fixed parameters: 15 minutes, 10 bars
+                   |
+                   |/help - help page
+                   |
+                   |""".stripMargin)
+
+  private def formatHelpAdmin(user: User): UIO[String] =
+    ZIO.succeed(s"""<b>User</b>
+                   |@${user.username.getOrElse("")}  ( ${user.firstName} ${user.lastName.getOrElse("")} )
+                   |
+                   |Main bot commands:
+                   |
                    |/getBalance          - Common balance
                    |/getCommonBalance    - Only total balance
                    |/getSymbolsBalance   - Balance by symbols
@@ -114,42 +128,51 @@ trait TelegramMethods {
                    |
                    |""".stripMargin)
 
-  private def sendToAllUsers(msgFormatter: UIO[String]): Task[Unit] =
+  private def sendToTelegramUsers(userIds: List[Long], msg: String): Task[Unit] =
     ZIO
-      .foreach(usersId) { userId =>
-        msgFormatter.flatMap { msg =>
-          request(SendMessage(userId, msg, Some(ParseMode.HTML)))
-        }
+      .foreach(userIds) { userId =>
+        request(SendMessage(userId, msg, Some(ParseMode.HTML)))
       }
       .tapError { e: Throwable =>
         ZIO.logError(s"${e.getMessage} - ${e.getMessage}")
       }
       .unit
 
+  private def sendToActiveUsers(msg: String): Task[Unit] =
+    usersService.activeUsers.flatMap(us => sendToTelegramUsers(us.map(_.user_id), msg))
+
+  private def sendToActiveAdmins(msg: String): Task[Unit] =
+    usersService.activeAdmins.flatMap(us => sendToTelegramUsers(us.map(_.user_id), msg))
+
+  private def sendToUser(userId: Long, msg: String): Task[Unit] =
+    sendToTelegramUsers(List(userId), msg)
+
   def sendCommonBalance(cwb: CommonWalletBalance): Task[Unit] =
-    sendToAllUsers(formatCommonBalance(cwb))
+    formatCommonBalance(cwb).flatMap(sendToActiveAdmins)
 
   def sendSymbolsBalance(sb: List[SymbolsBalance]): Task[Unit] =
-    sendToAllUsers(formatSymbolsBalance(sb))
+    formatSymbolsBalance(sb).flatMap(sendToActiveAdmins)
 
   def sendNewAdvice(advice: List[AdviceToUser]): Task[Unit] =
-    sendToAllUsers(
-      formatSavedAdvice(
-        advice.groupBy(a => AdviceToUserKey(a.adviser_id, a.advice_description, a.proc, a.c_interval))
-      )
-    )
+    formatSavedAdvice(
+      advice.groupBy(a => AdviceToUserKey(a.adviser_id, a.advice_description, a.proc, a.c_interval))
+    ).flatMap(sendToActiveUsers)
 
   def sendHelp(user: User): Task[Unit] =
-    sendToAllUsers(formatHelp(user))
+    for {
+      isAdmin <- usersService.findUser(user.id).map(_.exists(_.is_admin))
+      msg     <- if (isAdmin) formatHelpAdmin(user) else formatHelp(user)
+      _       <- sendToUser(user.id, msg)
+    } yield ()
 
   def sendViewDeep(interval: String, deep_bars: Int, vd_data: List[ViewDeepLine]): Task[Unit] =
-    sendToAllUsers(
-      formatViewDeep(interval, deep_bars, vd_data)
-    )
+    formatViewDeep(interval, deep_bars, vd_data).flatMap(sendToActiveUsers)
 
   def sendErrorMessage(command: Ask, message: String): Task[Unit] =
-    sendToAllUsers(ZIO.succeed(s"""<b>${command.cmd}</b>
-                                  |$message
-                                  |""".stripMargin))
+    sendToActiveUsers(
+      s"""<b>${command.cmd}</b>
+         |$message
+         |""".stripMargin
+    )
 
 }
