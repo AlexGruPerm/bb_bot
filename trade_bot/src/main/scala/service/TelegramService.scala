@@ -1,6 +1,5 @@
 package service
 
-import app.UserId
 import bybit_model.{ AdviceToUser, CommonWalletBalance, SymbolsBalance, ViewDeepLine }
 import com.bot4s.telegram.api.declarative.{ Commands, JoinRequests }
 import com.bot4s.telegram.cats.TelegramBot
@@ -22,6 +21,7 @@ import zio.http.SSLConfig.Data.FromJavaxNetSsl
 
 import java.io.IOException
 import java.nio.file.{ Files, Paths }
+import javax.sql.DataSource
 
 abstract class TelegramService(val conf: TelegramConfig)
     extends TelegramBot[Task](
@@ -41,7 +41,9 @@ class TelegramServiceImpl(
   config: TelegramConfig,
   private val started: Ref.Synchronized[Boolean],
   queue: Queue[Ask],
-  db: DatabaseService
+  db: DatabaseService,
+  us: UsersService,
+  ds: DataSource
 ) extends TelegramService(config)
     with Commands[Task]
     with JoinRequests[Task]
@@ -49,11 +51,12 @@ class TelegramServiceImpl(
     with TelegramCommands {
 
   // for TelegramMethods
-  override def usersId: List[UserId] = config.users
+  override def usersService: UsersService = us
 
-  // queue and DbService for TelegramCommands
-  override def getAskQueue: Queue[Ask] = queue
-  override def getDB: DatabaseService  = db
+  // for TelegramCommands
+  override def getAskQueue: Queue[Ask]   = queue
+  override def getDB: DatabaseService    = db
+  override def getDataSource: DataSource = ds
 
   private val certPathStr: String = config.pubcertpath
 
@@ -145,14 +148,20 @@ class TelegramServiceImpl(
 }
 
 object TelegramService {
-  val live: ZLayer[AppConfig with AskQueueService with DatabaseService, Throwable, TelegramService] =
+  val live: ZLayer[
+    AppConfig with AskQueueService with DatabaseService with DataSource with UsersService,
+    Throwable,
+    TelegramService
+  ] =
     ZLayer.scoped {
       for {
         config  <- ZIO.service[AppConfig].map(_.telegram)
         started <- Ref.Synchronized.make(false)
         queue   <- ZIO.service[AskQueueService]
         db      <- ZIO.service[DatabaseService]
-        service  = new TelegramServiceImpl(config, started, queue.askQ, db)
+        us      <- ZIO.service[UsersService]
+        ds      <- ZIO.service[DataSource]
+        service  = new TelegramServiceImpl(config, started, queue.askQ, db, us, ds)
       } yield service
     }
 }

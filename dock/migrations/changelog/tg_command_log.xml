@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.tg_command_log.xml">
+
+    <changeSet id="2026_09_21-1-create-tg_command_log" author="yakushev">
+        <sql>
+          create table data.tg_command_log(
+           id      bigserial primary key,
+           id_user int4 not null constraint fk_tg_command_log_user references data.users(id),
+           command varchar(1000) not null,
+           ts_db   timestamp DEFAULT LOCALTIMESTAMP NOT NULL
+          );
+
+          create index idx_tg_command_log_user on data.tg_command_log(id_user, ts_db desc);
+        </sql>
+        <comment>Create table tg_command_log</comment>
+    </changeSet>
+
+</databaseChangeLog>

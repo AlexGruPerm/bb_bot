@@ -49,4 +49,6 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
     <include file="changelog/get_current_candle_direct.xml" relativeToChangelogFile="true" />
     <include file="changelog/fut_data_iss1.xml" relativeToChangelogFile="true" />
     <include file="changelog/univers_clear_iss5.xml" relativeToChangelogFile="true" />
+    <include file="changelog/users.xml" relativeToChangelogFile="true" />
+    <include file="changelog/tg_command_log.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

@@ -20,8 +20,11 @@ import bybit_model.{
   SymbolAdviceProc,
   SymbolsAdviceProc,
   SymbolsBalance,
+  TgCommandLog,
   TradeAdviceOrder,
   TradeAdviceSelect,
+  Users,
+  UsersInsert,
   ViewDeepLine
 }
 import conf.{ Postgresql, _ }
@@ -59,6 +62,9 @@ trait DatabaseService {
   def getAndSaveAdvice(sap: SymbolsAdviceProc): ZIO[DataSource, SQLException, List[AdviceId]]
   def getAllAdvice(): ZIO[DataSource, SQLException, List[AdviceToUser]]
   def getViewDeep(interval: String, deep_bars: Int): ZIO[DataSource, SQLException, List[ViewDeepLine]]
+  def getUsers: ZIO[DataSource, SQLException, List[Users]]
+  def upsertUser(user: UsersInsert): ZIO[DataSource, SQLException, Unit]
+  def saveTgCommandLog(idUser: Int, command: String): ZIO[DataSource, SQLException, Unit]
 }
 
 object DatabaseService {
