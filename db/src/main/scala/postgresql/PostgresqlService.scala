@@ -45,10 +45,12 @@ import bybit_model.{
   SymbolSource,
   SymbolsAdviceProc,
   SymbolsBalance,
+  TgCommandLog,
   TradeAdvice,
   TradeAdviceOrder,
   TradeAdviceSelect,
   TradeAdviceUpdate,
+  UsersInsert,
   ViewDeepLine,
   WalletBalanceCoinInsert,
   WalletBalanceInsert
@@ -419,6 +421,18 @@ final class PostgresqlService extends DatabaseService {
       _.end_ts       -> "end_ts",
       _.deleted_rows -> "deleted_rows"
     )
+  }
+
+  private val usersSchema = quote {
+    querySchema[DbUser]("data.users")
+  }
+
+  private val usersInsertSchema = quote {
+    querySchema[UsersInsert]("data.users")
+  }
+
+  private val tgCommandLogSchema = quote {
+    querySchema[TgCommandLog]("data.tg_command_log")
   }
 
   override def getSymbols: ZIO[DataSource, SQLException, Set[Symbol]] =
@@ -1076,5 +1090,34 @@ final class PostgresqlService extends DatabaseService {
     }
     ctx.run(query)
   }
+
+  override def getUsers: ZIO[DataSource, SQLException, List[DbUser]] =
+    run(usersSchema)
+
+  override def upsertUser(user: UsersInsert): ZIO[DataSource, SQLException, Unit] =
+    run(
+      usersInsertSchema
+        .insertValue(lift(user))
+        .onConflictUpdate(_.user_id)(
+          (t, e) => t.is_bot                      -> e.is_bot,
+          (t, e) => t.first_name                  -> e.first_name,
+          (t, e) => t.last_name                   -> e.last_name,
+          (t, e) => t.username                    -> e.username,
+          (t, e) => t.language_code               -> e.language_code,
+          (t, e) => t.is_premium                  -> e.is_premium,
+          (t, e) => t.added_to_attachment_menu    -> e.added_to_attachment_menu,
+          (t, e) => t.can_join_groups             -> e.can_join_groups,
+          (t, e) => t.can_read_all_group_messages -> e.can_read_all_group_messages,
+          (t, e) => t.supports_inline_queries     -> e.supports_inline_queries
+        )
+    ).unit
+
+  override def saveTgCommandLog(idUser: Int, command: String): ZIO[DataSource, SQLException, Unit] =
+    run(
+      tgCommandLogSchema.insert(
+        _.id_user -> lift(idUser),
+        _.command -> lift(command)
+      )
+    ).unit
 
 }

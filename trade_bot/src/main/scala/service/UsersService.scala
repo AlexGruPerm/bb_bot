@@ -1,5 +1,6 @@
 package service
 
+import bybit_model.DbUser
 import conf.AppConfig
 import zio.durationInt
 import zio.{ Duration, Ref, UIO, ZEnvironment, ZIO, ZLayer }
@@ -8,15 +9,24 @@ import java.sql.{ SQLException, Timestamp }
 import javax.sql.DataSource
 
 trait UsersService {
+  def getUsers: UIO[List[DbUser]]
+  def activeUsers: UIO[List[DbUser]]
+  def activeAdmins: UIO[List[DbUser]]
+  def findUser(tgUserId: Long): UIO[Option[DbUser]]
   def refreshUsers: UIO[Unit]
 }
 
+final class UsersServiceLive(ref: Ref[List[DbUser]], db: DatabaseService, ds: DataSource) extends UsersService {
 
+  override def getUsers: UIO[List[DbUser]] = ref.get
 
+  override def activeUsers: UIO[List[DbUser]] =
     ref.get.map(_.filter(_.isActive(new Timestamp(System.currentTimeMillis()))))
 
+  override def activeAdmins: UIO[List[DbUser]] =
     ref.get.map(_.filter(u => u.is_admin && u.isActive(new Timestamp(System.currentTimeMillis()))))
 
+  override def findUser(tgUserId: Long): UIO[Option[DbUser]] =
     ref.get.map(_.find(_.user_id == tgUserId))
 
   override def refreshUsers: UIO[Unit] = UsersService.refreshFromDb(ref, db, ds)
@@ -24,6 +34,7 @@ trait UsersService {
 
 object UsersService {
 
+  private[service] def refreshFromDb(ref: Ref[List[DbUser]], db: DatabaseService, ds: DataSource): UIO[Unit] =
     db.getUsers
       .provideEnvironment(ZEnvironment(ds))
       .foldZIO(
@@ -32,6 +43,7 @@ object UsersService {
       )
 
   private def refreshLoop(
+    ref: Ref[List[DbUser]],
     db: DatabaseService,
     ds: DataSource,
     interval: Duration
