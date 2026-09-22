@@ -40,14 +40,6 @@ object TradeBot extends ZIOAppDefault {
     _ <- ZIO.serviceWithZIO[TelegramService](_.run())
     _ <- ZIO.serviceWithZIO[CommunicationService](_.runConsumer)
 
-    /*
-    _ <- ZIO.foreachParDiscard(symbols) { sym =>
-      Trader
-        .trade(sym)
-        .repeat(Schedule.spaced(1.seconds))
-        .fork
-    }
-     */
   } yield ()
 
   def run: ZIO[ZIOAppArgs with Scope, Any, Any] = for {
