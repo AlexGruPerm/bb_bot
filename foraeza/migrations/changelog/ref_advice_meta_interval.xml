@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.ref_advice_meta_interval.xml">
+
+    <changeSet id="2026_09_01-1-create-ref_advice_meta_interval" author="yakushev">
+        <sql>
+          create table data.ref_advice_meta_interval(
+           id_advice_meta int4 not null constraint fk_ref_advice_meta_interval_am references data.advice_meta(id),
+           id_interval    int4 not null constraint fk_ref_advice_meta_interval_in references data.interval(id),
+           constraint uk_ref_advice_meta_interval unique(id_advice_meta,id_interval)
+          );
+        </sql>
+        <comment>Create table ref_advice_meta_interval</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-ref_advice_meta_interval" author="yakushev">
+        <sql>
+          insert into  data.ref_advice_meta_interval(id_advice_meta,id_interval) values(1,4); 
+          insert into  data.ref_advice_meta_interval(id_advice_meta,id_interval) values(1,5); 
+        </sql>
+        <comment>Populate ref_advice_meta_interval</comment>
+    </changeSet>
+
+</databaseChangeLog>

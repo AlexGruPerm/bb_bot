@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.order_book.xml">
+
+    <changeSet id="2026_09_01-1-create-order_book" author="yakushev">
+        <sql>
+          create table data.order_book(
+          id          bigserial,
+          id_snapshot bigint not null constraint fk_ob_snap references data.order_book_snapshot(id) on delete cascade,
+          side        varchar(1) not null,
+          price       numeric,
+          amount      numeric,
+          constraint ch_side check (side in ('a','b')) 
+          );
+             
+          create index idx_ob_id_snap on data.order_book(id_snapshot);
+          create index idx_ob_id_snap_side_price on data.order_book(id_snapshot,side,price desc);
+        </sql>
+        <comment>Create table order_book</comment>
+    </changeSet>
+
+</databaseChangeLog>

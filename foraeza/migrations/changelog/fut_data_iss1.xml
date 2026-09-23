@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.fut_data_iss1.xml">
+
+    <changeSet id="2026_09_03-1-create-symbol_futures" author="yakushev">
+        <sql>
+            CREATE TABLE data.symbol_futures (
+                id          serial4 NOT NULL,
+                code        varchar(24) NOT NULL,
+                is_observed bool DEFAULT false NOT NULL,
+                ts_db       timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+                CONSTRAINT symbol_futures_pkey PRIMARY KEY (id),
+                CONSTRAINT uk_symbol_futures_code UNIQUE (code)
+            );
+            comment on table data.symbol_futures is 'All futures symbols';
+            comment on column data.symbol_futures.is_observed is 'Observed futures – data is retained longer in the futures_data table.';
+            comment on column data.symbol_futures.ts_db is 'When this symbol was save in dictionary';
+        </sql>
+        <comment>Create table symbol_futures</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_03-2-create-futures_data" author="yakushev">
+        <sql>
+            CREATE TABLE data.futures_data (
+            id              bigserial PRIMARY KEY,
+            id_symbol       int4 NOT NULL REFERENCES data.symbol_futures(id),
+            ts_db           timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+            last_price      numeric,
+            index_price     numeric,
+            mark_price      numeric,
+            prev_price_24h  numeric,
+            price_24h_pcnt  numeric,
+            high_price_24h  numeric,
+            low_price_24h   numeric,
+            prev_price_1h   numeric,
+            open_interest   numeric,
+            open_interest_value numeric,
+            turnover_24h    numeric,
+            volume_24h      numeric,
+            funding_rate    numeric,
+            next_funding_time int8,
+            ask1_size       numeric,
+            bid1_price      numeric,
+            ask1_price      numeric,
+            bid1_size       numeric,
+            funding_interval_hour int4,
+            funding_cap     numeric
+            );
+
+            create index idx_futures_data_id_symbol on data.futures_data(id_symbol);
+            create index idx_futures_data_ts_db on data.futures_data(ts_db);
+        </sql>
+        <comment>Create table futures_data</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_06-1-create-futures_data_observed" author="yakushev">
+        <sql>
+            CREATE TABLE data.futures_data_observed (
+            id              bigserial PRIMARY KEY,
+            id_symbol       int4 NOT NULL REFERENCES data.symbol_futures(id),
+            ts_db           timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+            last_price      numeric,
+            index_price     numeric,
+            mark_price      numeric,
+            prev_price_24h  numeric,
+            price_24h_pcnt  numeric,
+            high_price_24h  numeric,
+            low_price_24h   numeric,
+            prev_price_1h   numeric,
+            open_interest   numeric,
+            open_interest_value numeric,
+            turnover_24h    numeric,
+            volume_24h      numeric,
+            funding_rate    numeric,
+            next_funding_time int8,
+            ask1_size       numeric,
+            bid1_price      numeric,
+            ask1_price      numeric,
+            bid1_size       numeric,
+            funding_interval_hour int4,
+            funding_cap     numeric
+            );
+
+            create index idx_futures_data_observed_id_symbol on data.futures_data_observed(id_symbol);
+            create index idx_futures_data_observed_ts_db on data.futures_data_observed(ts_db);
+        </sql>
+        <comment>Create table futures_data</comment>
+    </changeSet>
+
+</databaseChangeLog>

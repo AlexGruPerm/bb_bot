@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.get_order_price.xml">
+
+    <changeSet id="2026_09_01-1-create-get_order_price" author="yakushev">
+        <sql splitStatements="false">
+         <![CDATA[
+            CREATE OR REPLACE FUNCTION data.get_order_price(p_code_symbol character varying, p_side character varying, p_qty numeric)
+             RETURNS numeric
+             LANGUAGE sql
+            AS $$
+            /*
+             Return last known order price.
+            */	
+            select ds.avgprice 
+              from (
+		            select ta.ts_bybit,
+		                   o.*,
+		                   row_number() over(order by ta.ts_bybit desc) as rn
+		              from data.bb_order o
+		              join data.trade_advice_order ta on ta.orderid = o.orderid
+		              where o.side   = p_side and
+		                    o.symbol = p_code_symbol and 
+                            abs(o.qty) - abs(p_qty) < 0.6
+	              ) ds
+             where rn=1;
+            $$
+            ;
+        ]]>
+        </sql>
+        <comment>Create function get_order_price</comment>
+    </changeSet>
+
+</databaseChangeLog>

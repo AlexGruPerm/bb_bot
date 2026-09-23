@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.get_total_wallet_balance.xml">
+
+    <changeSet id="2026_09_01-1-create-get_total_wallet_balance" author="yakushev">
+        <sql splitStatements="false">
+        <![CDATA[
+          CREATE OR REPLACE FUNCTION data.get_total_wallet_balance(p_mins_back in int)
+           RETURNS numeric
+           LANGUAGE sql
+          AS $$
+          /*
+           Return totalwalletbalance that was "p_mins_back" minutes ago.
+          */	
+	          with
+	          target as (
+		             select max(ts_bybit) as max_ms,
+		                    (max(ts_bybit) - p_mins_back*60*1000)::bigint as target_min
+		               from data.wallet_balance
+	                    ),
+	          ranked as (
+		             select wb.*,row_number() over (order by abs(wb.ts_bybit - t.target_min)) as rn
+		               from data.wallet_balance wb
+		              cross join target t
+		              where wb.ts_bybit > t.target_min - 5*60*1000 -- for eliminating full scan
+	                    )
+	          select totalwalletbalance
+	          from ranked
+	          where rn = 1;
+          $$
+          ;
+        ]]>
+        </sql>
+        <comment>Create function get_total_wallet_balance</comment>
+    </changeSet>
+
+</databaseChangeLog>

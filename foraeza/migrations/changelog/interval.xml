@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.interval.xml">
+
+    <changeSet id="2026_09_01-1-create-interval" author="yakushev">
+        <sql>
+          CREATE TABLE "data"."interval" (
+	          id serial4 NOT NULL,
+	          code varchar(3) NOT NULL,
+	          mins int4 NULL,
+	          CONSTRAINT interval_pkey PRIMARY KEY (id),
+	          CONSTRAINT uk_interval_code UNIQUE (code)
+          );
+        </sql>
+        <comment>Create table interval</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-interval" author="yakushev">
+        <sql>
+          insert into data.interval (code,mins)
+          select code,mins
+            from unnest(ARRAY['1','3','5','15','30','60','120','240','360','720','D','W','M']::varchar[],
+                        ARRAY[1,3,5,15,30,60,120,240,360,720,null,null,null]::int[]) as t(code,mins); 
+        </sql>
+        <comment>Populate interval</comment>
+    </changeSet>
+
+</databaseChangeLog>

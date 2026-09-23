@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.log_level.xml ">
+
+    <changeSet id="2026_09_01-1-craete-log_level" author="yakushev">
+        <sql>
+          create table data.log_level(
+           id   int primary key,
+           code varchar(5) not null,
+           constraint ul_log_level_code unique(code)
+          );
+        </sql>
+        <comment>Create table log_level</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-log_level" author="yakushev">
+        <sql>
+          insert into data.log_level(id,code) values(1,'info'); 
+          insert into data.log_level(id,code) values(2,'trace'); 
+          insert into data.log_level(id,code) values(3,'error'); 
+          insert into data.log_level(id,code) values(4,'debug'); 
+          insert into data.log_level(id,code) values(5,'fatal'); 
+          insert into data.log_level(id,code) values(6,'trade'); 
+        </sql>
+        <comment>Create table log_level</comment>
+    </changeSet>
+
+</databaseChangeLog>

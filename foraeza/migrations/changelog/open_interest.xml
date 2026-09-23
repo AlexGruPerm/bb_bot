@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.open_interest.xml">
+
+    <changeSet id="2026_09_01-1-create-open_interest" author="yakushev">
+        <sql>
+          create table data.open_interest(
+            id        bigserial PRIMARY KEY,
+            id_symbol int not null constraint fk_oi_symbol references data.symbol(id) on delete cascade,
+            ts_db     timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+            ts_bybit  int8 not null,     
+            oi        numeric,
+            constraint uk_open_interest unique(id_symbol,ts_db)
+          ); 
+
+          create index idx_io_symbol on data.open_interest(id_symbol,ts_bybit);
+        </sql>
+        <comment>Create table open_interest</comment>
+    </changeSet>
+
+</databaseChangeLog>

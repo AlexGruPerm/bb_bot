@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.ref_symbols_interval.xml">
+
+    <changeSet id="2026_09_01-1-create-ref_symbols_interval" author="yakushev">
+        <sql>
+          create table data.ref_symbol_interval(
+            id_symbol   int4 not null constraint fk_ref_symb_interv_symbol   references data.symbol(id), 
+            id_interval int4 not null constraint fk_ref_symb_interv_interval references data.interval(id),
+            constraint uk_ref_symbol_interval unique(id_symbol,id_interval)
+          );
+          comment on table data.ref_symbol_interval is 'Symbols and interval pairs for saving candles/klines';
+        </sql>
+        <comment>Create table ref_symbols_intervals</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-1-populate-ref_symbols_interval" author="yakushev">
+        <sql>
+          insert into data.ref_symbol_interval(id_symbol,id_interval)
+          select s.id,i.id 
+            from data.symbol s
+           cross join data.interval i      
+           where s.is_enabled = true and 
+                 i.code in ('1','5','15','30','60')
+           order by 1,2;   
+        </sql>
+        <comment>Populate ref_symbols_intervals</comment>
+    </changeSet>
+
+</databaseChangeLog>

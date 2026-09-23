@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.ref_symbols_intervals.xml">
+
+    <changeSet id="2026_09_01-1-create-view-ref_symbol_intervals" author="yakushev">
+        <sql>
+          create or replace view data.ref_symbols_intervals
+          as
+          select ref_sy.id_symbol,
+              ref_sy.id_interval,
+              (('kline.'::text || i.code::text) || '.'::text) || s.code::text as kline_topic,
+              i.code as c_interval
+             from data.ref_symbol_interval ref_sy
+               join data.symbol s on s.id = ref_sy.id_symbol
+               join data.interval i on i.id = ref_sy.id_interval;
+        </sql>
+        <comment>Create view ref_symbol_intervals</comment>
+    </changeSet>
+
+</databaseChangeLog>

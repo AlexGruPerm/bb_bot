@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.v_curr_state.xml">
+
+    <changeSet id="2026_09_01-1-create-v_curr_state" author="yakushev">
+        <sql>
+        <![CDATA[
+          CREATE OR REPLACE VIEW data.v_curr_state
+          AS SELECT 'wallet_balance'::text AS metric,
+              wb.ts_db AS last_date_time,
+              round(EXTRACT(epoch FROM CURRENT_TIMESTAMP - to_timestamp(wb.ts_bybit::double precision / 1000.0::double precision))) < 10::numeric AS is_actual
+             FROM data.wallet_balance wb
+            WHERE wb.id = (( SELECT max(wbi.id) AS max
+                     FROM data.wallet_balance wbi))
+          UNION ALL
+           SELECT 'candle_kline_'::text || s.code::text AS metric,
+              NULL::timestamp without time zone AS last_date_time,
+                  CASE
+                      WHEN sum(1) = sum(
+                      CASE
+                          WHEN dse.is_actual THEN 1 
+                          ELSE 0
+                      END) THEN true
+                      ELSE false
+                  END AS is_actual
+             FROM ( SELECT ds.id_symbol,
+                      ds.c_interval,
+                      ds.max_start_ts,
+                      round(EXTRACT(epoch FROM CURRENT_TIMESTAMP - to_timestamp(ds.max_start_ts::double precision / 1000.0::double precision))) AS diff_seconds,
+                          CASE
+                              WHEN round(EXTRACT(epoch FROM CURRENT_TIMESTAMP - to_timestamp(ds.max_start_ts::double precision / 1000.0::double precision))) <= (ds.c_interval::integer * 60)::numeric THEN true
+                              ELSE false
+                          END AS is_actual
+                     FROM ( SELECT ci.id_symbol,
+                              ci.c_interval,
+                              max(k.start_ts) AS max_start_ts
+                             FROM data.candle ci
+                               JOIN data.kline k ON k.id_candle = ci.id
+                            WHERE ci.start_ts IS NULL
+                            GROUP BY ci.id_symbol, ci.c_interval) ds) dse
+               JOIN data.symbol s ON s.id = dse.id_symbol
+            GROUP BY s.code
+            ORDER BY 1 DESC;
+            ]]>
+        </sql>
+        <comment>Create view v_curr_state</comment>
+    </changeSet>
+
+</databaseChangeLog>

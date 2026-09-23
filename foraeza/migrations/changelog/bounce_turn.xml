@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.bounce_turn.xml">
+
+    <changeSet id="2026_09_01-1-create-bounce_turn" author="yakushev">
+        <sql splitStatements="false">
+        <![CDATA[
+            CREATE OR REPLACE FUNCTION data.bounce_turn(p_id_symbol int4, p_start_ts int8)
+             RETURNS text
+             LANGUAGE sql
+            AS $function$
+            with dataset_c as (
+		                         select cii.* 
+		                           from data.candle cii 
+		                          where cii.start_ts is not null and 
+		                                cii.c_interval = '15' and 
+                                        cii.id_symbol  = p_id_symbol and 
+		                                cii.start_ts  <= p_start_ts 
+                              ),
+               ds_filtered_maxv as (
+					                 select c.*,
+					                        (case when c.v = max(c.v) over() then c.start_ts else null::int end)               as max_volume_bar,
+					                        max(c.v) over()                                                                    as max_vol,
+					                        (case when c.v = max(c.v) over() then c.c else null::int end)                      as max_volume_close,
+					                        (case when c.start_ts = min(c.start_ts) over() then c.start_ts else null::int end) as fisrt_start_ts, 
+					                        (case when c.start_ts = max(c.start_ts) over() then c.start_ts else null::int end) as last_start_ts,
+					                        (case when c.start_ts = max(c.start_ts) over() then c.c else null::int end)        as last_close
+					                   from dataset_c c 
+						              where c.c_interval = '15' and 
+						                    c.start_ts > (select max(cm.start_ts) from dataset_c cm) - 33400000
+	                               ),-- select * from ds_filtered_maxv, 
+	            ds_common_filter as (               
+						              select sum(1) as cnt,
+						                     sum(max_volume_bar)                        as max_volume_bar,
+						                     max(max_vol)                               as max_vol,
+						                     max(max_volume_close)                      as max_volume_close,
+						                     sum(fisrt_start_ts)                        as fisrt_start_ts,
+						                     sum(last_start_ts)                         as last_start_ts,
+						                     sum(last_start_ts)  - sum(fisrt_start_ts)  as first_last_interval,
+						                     sum(max_volume_bar) - sum(fisrt_start_ts)  as first_maxvol_interval,
+						                     sum(last_start_ts)  - sum(max_volume_bar)  as maxvol_last_interval,
+						                     max(last_close)                            as last_close
+						                from ds_filtered_maxv c 
+						               where c.max_volume_bar is not null or 
+						                     c.fisrt_start_ts is not null or
+						                     c.last_start_ts  is not null
+						              having sum(1)=3 --must be equal 3, one bar with max volume     
+						                 and (sum(last_start_ts)  - sum(fisrt_start_ts)) = 33300000
+						                 and (sum(max_volume_bar) - sum(fisrt_start_ts)) > (sum(last_start_ts)  - sum(max_volume_bar))*3
+	                                ),-- select * from ds_common_filter
+	            ds_maxvol_bar as (                    
+					              select (case when c.o < c.c then 'up'
+					                           when c.o > c.c then 'down'
+					                        else 'unknown' end) as bar_type,
+					                     c.c as maxvol_bar_close
+					                from ds_filtered_maxv c
+					               where exists(select * from ds_common_filter) and 
+					                     c.max_volume_bar is not null
+	                             ),
+	            ds_first_maxval as (                 
+					                  select avg(c.v)                    as first_maxvol_avg_volume,
+					                         round(avg((c.c + c.o)/2),3) as first_maxvol_avg_price 
+						                from ds_filtered_maxv c
+						               where exists(select * from ds_common_filter) and 
+						                     c.start_ts >= (select cf.fisrt_start_ts from ds_filtered_maxv cf where  cf.fisrt_start_ts is not null) and 
+						                     c.start_ts <  (select cf.max_volume_bar from ds_filtered_maxv cf where  cf.max_volume_bar is not null)
+                                   ),
+               ds_maxval_last as (
+				                  select avg(c.v)                    as first_maxvol_avg_volume,
+				                         round(avg((c.c + c.o)/2),3) as first_maxvol_avg_price 
+					                from ds_filtered_maxv c
+					               where exists(select * from ds_common_filter) and 
+					                     c.start_ts >  (select cf.max_volume_bar from ds_filtered_maxv cf where  cf.max_volume_bar is not null) and 
+					                     c.start_ts <= (select cf.last_start_ts  from ds_filtered_maxv cf where  cf.last_start_ts is not null)
+	                             )
+                  select --4 as id_symbol,
+                         --fnl.last_start_ts as start_ts,
+                         (case
+                  	        when mvb.bar_type ='up'   then 'buy'
+	                        when mvb.bar_type ='down' then 'sell'
+                          end) as order_advise
+                         --fnl.*, '************' as div1, mvb.*,'************' as div2, fmv.*,'************' as div3, mvl.*
+	                from 
+	                     ds_common_filter fnl,
+	                     ds_maxvol_bar    mvb,
+	                     ds_first_maxval  fmv,
+	                     ds_maxval_last   mvl,
+	                     (
+				            select  1 as is_symbol, 5.5 as vol_koeff union all 
+				            select  2 as is_symbol, 6.5 as vol_koeff union all 
+				            select  3 as is_symbol, 5.5 as vol_koeff union all 
+				            select  4 as is_symbol, 4   as vol_koeff union all 
+				            select  5 as is_symbol, 4   as vol_koeff union all 
+				            select  6 as is_symbol, 2.5 as vol_koeff union all 
+				            select  7 as is_symbol, 8   as vol_koeff union all 
+				            select  8 as is_symbol, 2.5 as vol_koeff union all 
+				            select  9 as is_symbol, 4   as vol_koeff union all 
+				            select 10 as is_symbol, 6   as vol_koeff 
+	                     ) as volume_koeff
+	               where 
+	                     (
+	                       (fnl.last_close > mvb.maxvol_bar_close and mvb.bar_type ='up' and fnl.max_volume_close < fmv.first_maxvol_avg_price ) or 
+	                       (fnl.last_close < mvb.maxvol_bar_close and mvb.bar_type ='down' and fnl.max_volume_close > fmv.first_maxvol_avg_price )
+	                     ) -- last price compare to maxvol price
+                     and fnl.max_vol > fmv.first_maxvol_avg_volume * volume_koeff.vol_koeff  -- max volume gt. avg in prev interval
+                     and fnl.max_vol > mvl.first_maxvol_avg_volume
+                     and mvb.bar_type  in ('up','down')
+                     and volume_koeff.is_symbol = p_id_symbol;
+            $function$
+            ;
+        ]]>
+        </sql>
+        <comment>Create function bounce_turn</comment>
+    </changeSet>
+
+</databaseChangeLog>

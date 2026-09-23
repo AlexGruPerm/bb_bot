@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.coin.xml">
+
+    <changeSet id="2026_09_01-1-create-coin" author="yakushev">
+        <sql>
+            create table data.coin(
+                id serial4 NOT NULL,
+                code varchar(8) NOT NULL,
+                CONSTRAINT coin_pkey PRIMARY KEY (id),
+                CONSTRAINT uk_coin_code UNIQUE (code)
+            ); 
+        </sql>
+        <comment>Create table coin</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-coin" author="yakushev">
+        <sql>
+            insert into data.coin(code) values
+             ('BTC'),
+             ('DOGE'),
+             ('SOL'),
+             ('GRAM'),
+             ('MNT'),
+             ('TRX'),
+             ('ADA'),
+             ('ETH'),
+             ('XRP'),
+             ('DOT'),
+             ('USDT');
+        </sql>
+        <comment>Populate table coin</comment>
+    </changeSet>
+
+</databaseChangeLog>

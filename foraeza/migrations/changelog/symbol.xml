@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.symbol.xml">
+
+    <changeSet id="2026_09_01-1-create-symbol" author="yakushev">
+        <sql>
+          CREATE TABLE data.symbol (
+	          id serial4 NOT NULL,
+	          code varchar(24) NOT NULL,
+	          id_coin int4 NOT NULL,
+	          is_enabled bool DEFAULT true NOT NULL,
+	          is_tradable bool DEFAULT true NOT NULL,
+	          CONSTRAINT ch_tradable_must_be_enabled CHECK (((is_enabled = true) OR ((is_enabled = false) AND (is_tradable = false)))),
+	          CONSTRAINT symbol_pkey PRIMARY KEY (id),
+	          CONSTRAINT uk_symbol_code UNIQUE (code),
+	          CONSTRAINT fk_symbol_coin FOREIGN KEY (id_coin) REFERENCES "data".coin(id)
+          );
+        </sql>
+        <comment>Create table symbol</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-symbol" author="yakushev">
+        <sql>
+          INSERT INTO data.symbol(code,id_coin) 
+          select ds.symbolCode,c.id
+          from(
+	          SELECT symbolCode, coinCode
+	          FROM unnest(ARRAY['BTCUSDT','DOGEUSDT','SOLUSDT','GRAMUSDT','MNTUSDT','TRXUSDT','ADAUSDT','ETHUSDT','XRPUSDT','DOTUSDT'],  
+	                      ARRAY['BTC','DOGE','SOL','GRAM','MNT','TRX','ADA','ETH','XRP','DOT']
+	                      ) AS t(symbolCode, coinCode)
+          ) ds
+          join data.coin c on c.code = ds.coinCode; 
+        </sql>
+        <comment>Populate symbol</comment>
+    </changeSet>
+
+</databaseChangeLog>

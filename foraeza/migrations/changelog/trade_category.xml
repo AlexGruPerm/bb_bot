@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.trade_category.xml">
+
+    <changeSet id="2026_09_01-1-create-trade_category" author="yakushev">
+        <sql>
+          create table data.trade_category(
+           id   int primary key,
+           code varchar(24) not null,
+           CONSTRAINT uk_trade_category_code UNIQUE (code)
+          );
+        </sql>
+        <comment>Create table trade_category</comment>
+    </changeSet>
+    
+     <changeSet id="2026_09_01-1-populate-trade_category" author="yakushev">
+        <sql>
+          insert into data.trade_category(id,code) values(1,'spot');
+          insert into data.trade_category(id,code) values(2,'futures');
+        </sql>
+        <comment>Populate trade_category</comment>
+    </changeSet>
+
+</databaseChangeLog>

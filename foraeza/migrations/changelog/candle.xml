@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.candle.xml">
+
+    <changeSet id="2026_09_01-1-create-candle" author="yakushev">
+        <sql>
+          create table data.candle(
+           id         bigserial primary key,
+           id_symbol  int not null constraint fk_candle_symbol references data.symbol(id) on delete cascade,
+           ts_db      timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           start_ts   bigint,
+           end_ts     bigint,
+           c_interval varchar(3) not null,
+           o          numeric,
+           h          numeric,
+           l          numeric,
+           c          numeric, 
+           v          numeric,
+           constraint uk_candle unique(id_symbol,start_ts,end_ts) 
+          );
+
+          CREATE INDEX idx_start_ts_desc_candle ON data.candle USING btree (start_ts desc) WHERE (start_ts IS not NULL);
+
+          create unique index uk_cancle_single_open_candle on data.candle(id_symbol,c_interval) where start_ts is null;  
+
+          CREATE INDEX idx_candle_symbol_int_1m_tsdb ON data.candle USING btree (id_symbol, ts_db) WHERE ((c_interval)::text = '1'::text);
+          CREATE INDEX idx_candle_symbol_int_5m_tsdb ON data.candle USING btree (id_symbol, ts_db) WHERE ((c_interval)::text = '5'::text);
+          CREATE INDEX idx_candle_symbol_int_15m_tsdb ON data.candle USING btree (id_symbol, ts_db) WHERE ((c_interval)::text = '15'::text);
+          CREATE INDEX idx_candle_symbol_int_60m_tsdb ON data.candle USING btree (id_symbol, ts_db) WHERE ((c_interval)::text = '60'::text);
+
+          CREATE INDEX idx_candle_symbol_int_15m_sts ON data.candle USING btree (id_symbol, start_ts) WHERE ((c_interval)::text = '15'::text);
+          CREATE INDEX idx_candle_symbol_int_1m_sts ON data.candle USING btree (id_symbol, start_ts) WHERE ((c_interval)::text = '1'::text);
+          CREATE INDEX idx_candle_symbol_int_5m_sts ON data.candle USING btree (id_symbol, start_ts) WHERE ((c_interval)::text = '5'::text);
+          CREATE INDEX idx_candle_symbol_int_60m_sts ON data.candle USING btree (id_symbol, start_ts) WHERE ((c_interval)::text = '60'::text); 
+        </sql>
+        <comment>Create table candle</comment>
+    </changeSet>
+
+</databaseChangeLog>

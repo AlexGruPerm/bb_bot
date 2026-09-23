@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.univers_clear_iss5.xml">
+
+    <changeSet id="2026_09_07-1" author="yakushev">
+        <sql>
+         alter table data.reglament_log drop constraint fk_regl_log_regl;
+        </sql>
+        <comment>Drop foreign key constraint on old table data.reglament</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_07-2-reglament_meta" author="yakushev">
+        <sql>
+          create table data.reglament_meta (
+              id          serial primary key,
+              table_name  text        not null,
+              ts_column   text        not null default 'ts_bybit',
+              keep_days   numeric     not null,
+              enabled     boolean     not null default true,
+              constraint uk_reglament_meta unique(table_name)
+          );
+
+          comment on column data.reglament_meta.keep_days is 'part of day - epoch from interval 1 day * keep_days. 1 = 1 day, 1/24= 1 hour';
+
+          -- use: 1.0/24/60 for 1 minute uterval
+            insert into data.reglament_meta (table_name, ts_column, keep_days) values
+                ('wallet_balance',       'ts_db', 120.0),
+                ('order_book_snapshot',  'ts_db', 10.0),
+                ('candle',               'ts_db', 10.0),
+                ('futures_data',         'ts_db', 2.0),
+                ('futures_data_observed','ts_db', 10.0),
+                ('open_interest',        'ts_db', 10.0);
+
+        </sql>
+        <comment>New table for reglamnet meta</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_07-3" author="yakushev">
+        <sql>
+          alter table data.reglament_log add	constraint fk_regl_log_regl foreign key (id_reglament) references data.reglament_meta (id); 
+        </sql>
+        <comment>New foreign key from reglament_log to reglament_meta</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_07-4" author="yakushev">
+        <sql>
+          drop table data.reglament;
+        </sql>
+        <comment>Drop old table reglament.</comment>
+    </changeSet>
+
+</databaseChangeLog>

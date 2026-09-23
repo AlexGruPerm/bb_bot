@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.already_advice.xml">
+
+    <changeSet id="2026_09_01-1-create-already_advice" author="yakushev">
+        <sql splitStatements="false">
+         <![CDATA[
+            CREATE OR REPLACE FUNCTION data.already_advice(p_id_symbol integer, p_order_side character varying, p_order_qty numeric)
+             RETURNS boolean
+             LANGUAGE sql
+            AS $$
+            /*
+             Checking whether there was a trade signal in the last 30 seconds to avoid duplication.
+            */	
+            select 
+              exists(
+	            select ta.*
+	              from data.trade_advice ta
+	              join data.trade_side ts on ts.id = ta.id_side
+	              join data.trade_order_type tot on tot.id = ta.id_order_type
+	             where ta.id_symbol = p_id_symbol
+	               and ts.code = p_order_side
+	               and ta.qty = p_order_qty
+	               and tot.code = 'Market'
+	               and round(EXTRACT(EPOCH FROM (localtimestamp - ta.ts_db))) < 30 -- last 30 seconds.
+              )
+            $$
+            ;
+        ]]>
+        </sql>
+        <comment>Create function already_advice</comment>
+    </changeSet>
+
+</databaseChangeLog>

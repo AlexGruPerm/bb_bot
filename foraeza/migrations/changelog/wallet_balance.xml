@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.wallet_balance.xml">
+
+    <changeSet id="2026_09_01-1-create-wallet_balance" author="yakushev">
+        <sql>
+          create table data.wallet_balance(
+           id                    bigserial primary key,
+           ts_db                 timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+           totalEquity           numeric not null,
+           totalInitialMargin    numeric,
+           totalAvailableBalance numeric,
+           totalWalletBalance    numeric not null,
+           ts_bybit              int8 NOT NULL
+          );
+          
+          create index idx_desc_wb_ts_bybit on data.wallet_balance(ts_bybit desc);
+        </sql>
+        <comment>Create table wallet_balance</comment>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.get_last_price.xml">
+
+    <changeSet id="2026_09_01-1-create-get_last_price" author="yakushev">
+        <sql splitStatements="false">
+        <![CDATA[
+            CREATE OR REPLACE FUNCTION data.get_last_price(p_id_symbol integer)
+             RETURNS numeric
+             LANGUAGE sql
+            AS $$
+            /*
+             Return last known C price from internal kline (external - candle)
+            */	
+            with cndl as (
+		             /* last 1m candle */
+		             select max(c.id) as max_id
+		               from data.candle c 
+		              where c.id_symbol = p_id_symbol and 
+		                    c.c_interval = '1' and 
+		                    c.ts_db > localtimestamp - interval '5 minutes' and -- for eliminating full scan
+		                    round(EXTRACT(EPOCH FROM (localtimestamp - c.ts_db))) between 0 and 60
+                         )
+            select k.c
+              from data.kline k
+             where k.id_candle = (select max_id from cndl) and 
+                   k.ts_db = (
+                              select max(ki.ts_db)
+                                from data.kline ki 
+                               where ki.id_candle = (select max_id from cndl)
+                             );
+            $$
+            ;
+        ]]>
+        </sql>
+        <comment>Create function get_last_price.xml</comment>
+    </changeSet>
+
+</databaseChangeLog>

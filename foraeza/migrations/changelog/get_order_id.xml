@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.get_order_id.xml">
+
+    <changeSet id="2026_09_01-1-create-get_order_id" author="yakushev">
+        <sql splitStatements="false">
+         <![CDATA[
+          CREATE OR REPLACE FUNCTION data.get_order_id(p_code_symbol character varying, p_side character varying, p_qty numeric)
+           RETURNS int8
+           LANGUAGE sql
+          AS $$
+          /*
+           Return last known orderId.
+          */	
+          select ds.orderid 
+            from (
+		          select ta.ts_bybit,
+		                 o.*,
+		                 row_number() over(order by ta.ts_bybit desc) as rn
+		            from data.bb_order o
+		            join data.trade_advice_order ta on ta.orderid = o.orderid
+		            where o.side   = p_side and
+		                  o.symbol = p_code_symbol and 
+                          abs(o.qty) - abs(p_qty) < 0.6 and
+                          -- not yet closed
+                          not exists(
+                                     select 1
+                                       from data.trade_advice tai
+                                      where tai.to_close_orderid = o.orderid
+                                        and exists(
+                                                   select 1
+                                                     from data.trade_advice_order tao
+                                                    where tao.id_trade_advice = tai.id
+                                                  )
+                                    )
+	            ) ds
+           where rn=1;
+          $$
+          ;
+        ]]>
+        </sql>
+        <comment>Create function get_order_id</comment>
+    </changeSet>
+
+</databaseChangeLog>

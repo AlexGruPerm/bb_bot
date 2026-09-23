@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.trade_advice.xml">
+
+    <changeSet id="2026_09_01-1-create-trade_advice" author="yakushev">
+        <sql>
+          CREATE TABLE data.trade_advice (
+	          id             bigserial NOT null primary key,
+	          ts_db          timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
+	          id_symbol      int4 NOT null,
+	          id_category    int not null constraint fk_trade_advice_categ references data.trade_category(id),  
+	          id_side        int not null constraint fk_trade_advice_side  references data.trade_side(id),
+	          isLeverage     boolean not null,
+	          id_order_type  int not null constraint fk_trade_advice_ord_typ references data.trade_order_type(id),
+	          qty            numeric not null,
+	          id_market_unit int not null constraint fk_trade_advice_mrk_unit references data.market_unit(id),
+	          slippageToleranceType varchar(24) default 'Percent',
+	          slippageTolerance     numeric default 0.1,
+	          is_taken              boolean not null default false,
+	          taken_ts              timestamp,
+	          who_insert            varchar(100),
+	          to_close_orderid      int8
+          );
+
+          create index idx_trade_advice_ts_db_desc on data.trade_advice(id_symbol,ts_db desc) where is_taken = false;
+        </sql>
+        <comment>Create table trade_advice</comment>
+    </changeSet>
+    
+</databaseChangeLog>

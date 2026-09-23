@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.advice_meta.xml">
+
+    <changeSet id="2026_09_01-1-create-advice_meta" author="yakushev">
+        <sql>
+          create table data.advice_meta(
+           id                  serial CONSTRAINT advice_meta_pkey PRIMARY key,
+           advice_description  text not null,
+           proc                text not null
+          );
+          comment on column data.advice_meta.proc is 'Name of procedure for this advices - fixed API (id_symbol, start_ts) :text - buy, sell, null';
+        </sql>
+        <comment>Create table advice_meta</comment>
+    </changeSet>
+    
+    <changeSet id="2026_09_01-2-populate-advice_meta" author="yakushev">
+        <sql>
+          insert into data.advice_meta(advice_description,proc) values('We are looking for a bar with high volume, after which the price went to the side of the bar.','bounce_turn');
+          insert into data.advice_meta(advice_description,proc) values('We observe when the price suddenly breaks out of the channel.', 'exit_from_channel');
+        </sql>
+        <comment>Populate advice_meta</comment>
+    </changeSet>
+
+</databaseChangeLog>
