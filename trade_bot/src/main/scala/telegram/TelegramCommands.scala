@@ -90,19 +90,28 @@ trait TelegramCommands {
 
   onCommand("/getCommonBalance") { implicit msg =>
     processCommand(cmd = "/getCommonBalance", requiresAdmin = true) {
-      putToQueue(GetCommonBalance)
+      msg.from match {
+        case Some(u) => putToQueue(GetCommonBalance(u))
+        case None    => ZIO.unit
+      }
     }
   }
 
   onCommand("/getSymbolsBalance") { implicit msg =>
     processCommand(cmd = "/getSymbolsBalance", requiresAdmin = true) {
-      putToQueue(GetSymbolsBalance)
+      msg.from match {
+        case Some(u) => putToQueue(GetSymbolsBalance(u))
+        case None    => ZIO.unit
+      }
     }
   }
 
   onCommand("/getBalance") { implicit msg =>
     processCommand(cmd = "/getBalance", requiresAdmin = true) {
-      putToQueue(GetCommonBalance) *> putToQueue(GetSymbolsBalance)
+      msg.from match {
+        case Some(u) => putToQueue(GetCommonBalance(u)) *> putToQueue(GetSymbolsBalance(u))
+        case None    => ZIO.unit
+      }
     }
   }
 
@@ -118,7 +127,10 @@ trait TelegramCommands {
 
   onCommand("/getViewDeep_15_10") { implicit msg =>
     processCommand(cmd = "/getViewDeep_15_10", requiresAdmin = false) {
-      putToQueue(GetViewDeep("15", 10))
+      msg.from match {
+        case Some(u) => putToQueue(GetViewDeep("15", 10, u))
+        case None    => ZIO.unit
+      }
     }
   }
 
@@ -128,11 +140,17 @@ trait TelegramCommands {
         val interval: String = param1
         val deepBars: Int    = param2.toInt
         processCommand(cmd = s"/getViewDeep $param1 $param2", requiresAdmin = false) {
-          putToQueue(GetViewDeep(interval, deepBars))
+          msg.from match {
+            case Some(u) => putToQueue(GetViewDeep(interval, deepBars, u))
+            case None    => ZIO.unit
+          }
         }
       case args                =>
         processCommand(cmd = "/getViewDeep", requiresAdmin = false) {
-          putToQueue(GetViewDeepInvalid(args.mkString))
+          msg.from match {
+            case Some(u) => putToQueue(GetViewDeepInvalid(args.mkString, u))
+            case None    => ZIO.unit
+          }
         }
     }
   }

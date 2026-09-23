@@ -138,6 +138,7 @@ trait TelegramMethods {
       }
       .unit
 
+  // For sending to everyone (advices)
   private def sendToActiveUsers(msg: String): Task[Unit] =
     usersService.activeUsers.flatMap(us => sendToTelegramUsers(us.map(_.user_id), msg))
 
@@ -165,11 +166,12 @@ trait TelegramMethods {
       _       <- sendToUser(user.id, msg)
     } yield ()
 
-  def sendViewDeep(interval: String, deep_bars: Int, vd_data: List[ViewDeepLine]): Task[Unit] =
-    formatViewDeep(interval, deep_bars, vd_data).flatMap(sendToActiveUsers)
+  def sendViewDeep(interval: String, deep_bars: Int, vd_data: List[ViewDeepLine], user: User): Task[Unit] =
+    formatViewDeep(interval, deep_bars, vd_data).flatMap(sendToUser(user.id, _))
 
-  def sendErrorMessage(command: Ask, message: String): Task[Unit] =
-    sendToActiveUsers(
+  def sendErrorMessage(command: Ask, message: String, user: User): Task[Unit] =
+    sendToUser(
+      user.id,
       s"""<b>${command.cmd}</b>
          |$message
          |""".stripMargin

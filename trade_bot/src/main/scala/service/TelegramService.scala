@@ -29,12 +29,12 @@ abstract class TelegramService(val conf: TelegramConfig)
       AsyncHttpClientZioBackend.usingClient(zio.Runtime.default, asyncHttpClient())
     ) {
   // these methods are in TelegramMethods
-  def sendErrorMessage(command: Ask, message: String): Task[Unit]
+  def sendErrorMessage(command: Ask, message: String, user: User): Task[Unit]
   def sendCommonBalance(cwb: CommonWalletBalance): Task[Unit]
   def sendSymbolsBalance(sb: List[SymbolsBalance]): Task[Unit]
   def sendNewAdvice(advice: List[AdviceToUser]): Task[Unit]
   def sendHelp(user: User): Task[Unit]
-  def sendViewDeep(interval: String, deep_bars: Int, vd_data: List[ViewDeepLine]): Task[Unit]
+  def sendViewDeep(interval: String, deep_bars: Int, vd_data: List[ViewDeepLine], user: User): Task[Unit]
   def sendAdminErrorMessage(message: String): Task[Unit]
 }
 

@@ -92,7 +92,7 @@ object TradeBot extends ZIOAppDefault {
       ds     <- ZIO.service[DataSource]
       q      <- ZIO.service[AskQueueService]
       alerts <- db.getAdminAlerts.provideEnvironment(ZEnvironment(ds))
-      _ <- ZIO.foreachDiscard(alerts){a => ZIO.logInfo(s"alert = ${a.toString}")}
+      _      <- ZIO.foreachDiscard(alerts)(a => ZIO.logInfo(s"alert = ${a.toString}"))
       _      <- ZIO.when(alerts.nonEmpty) {
         for {
           msg <- buildAdminAlertMessage(alerts)

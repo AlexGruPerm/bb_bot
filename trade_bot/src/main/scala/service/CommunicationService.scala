@@ -16,42 +16,47 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
 
   private def getMaxWalletBalanceId(ask: Ask): ZIO[DataSource, SQLException, Long] =
     ask match {
-      case GetCommonBalance | GetSymbolsBalance => db.getMaxWalletBalanceId
-      case _                                    => ZIO.succeed(0L)
+      case GetCommonBalance(_) | GetSymbolsBalance(_) => db.getMaxWalletBalanceId
+      case _                                          => ZIO.succeed(0L)
     }
 
   private def handler(ask: Ask): ZIO[DataSource, Throwable, Unit] = for {
     _                  <- ZIO.logInfo(s"Handling ask: ${ask.cmd}")
     maxWalletBalanceId <- getMaxWalletBalanceId(ask)
     _                  <- ask match {
-      case GetCommonBalance                 =>
+      case GetCommonBalance(user)                 =>
         db.getCommonWalletBalance(maxWalletBalanceId)
           .foldZIO(
-            err => tg.sendErrorMessage(GetCommonBalance, s"Error receiving balance: ${err.getMessage}"),
+            err => tg.sendErrorMessage(GetCommonBalance(user), s"Error receiving balance: ${err.getMessage}", user),
             cwb => tg.sendCommonBalance(cwb)
           )
-      case GetSymbolsBalance                =>
+      case GetSymbolsBalance(user)                =>
         db.getSymbolsBalance(maxWalletBalanceId)
           .foldZIO(
-            err => tg.sendErrorMessage(GetSymbolsBalance, s"Error receiving balance: ${err.getMessage}"),
+            err => tg.sendErrorMessage(GetSymbolsBalance(user), s"Error receiving balance: ${err.getMessage}", user),
             cwb => tg.sendSymbolsBalance(cwb)
           )
-      case HelpFrom(user)                   => tg.sendHelp(user)
-      case GetViewDeep(interval, deep_bars) =>
+      case HelpFrom(user)                         => tg.sendHelp(user)
+      case GetViewDeep(interval, deep_bars, user) =>
         db.getViewDeep(interval, deep_bars)
           .foldZIO(
             err =>
-              tg.sendErrorMessage(GetViewDeep(interval, deep_bars), s"Error receiving view deep: ${err.getMessage}"),
-            vd_data => tg.sendViewDeep(interval, deep_bars, vd_data)
+              tg.sendErrorMessage(
+                GetViewDeep(interval, deep_bars, user),
+                s"Error receiving view deep: ${err.getMessage}",
+                user
+              ),
+            vd_data => tg.sendViewDeep(interval, deep_bars, vd_data, user)
           )
-      case GetViewDeepInvalid(args)         =>
+      case GetViewDeepInvalid(args, user)         =>
         tg.sendErrorMessage(
-          GetViewDeepInvalid(args),
-          s"Invalid parameters [$args] Try /getViewDeep 15 10 (where 15 - interval, 10 - deep bars)"
+          GetViewDeepInvalid(args, user),
+          s"Invalid parameters [$args] Try /getViewDeep 15 10 (where 15 - interval, 10 - deep bars)",
+          user
         )
-      case SendAdminErrorLog(message)       => tg.sendAdminErrorMessage(message)
+      case SendAdminErrorLog(message)             => tg.sendAdminErrorMessage(message)
       // ...
-      case _                                => ZIO.logInfo("[ANY] ASK in QUEUE")
+      case _                                      => ZIO.logInfo("[ANY] ASK in QUEUE")
     }
   } yield ()
 

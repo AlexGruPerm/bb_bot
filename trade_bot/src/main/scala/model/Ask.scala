@@ -1,16 +1,17 @@
 package model
 
+import app.UserId
 import com.bot4s.telegram.models.User
 
 trait Ask {
   def cmd: String
 }
 
-object GetCommonBalance extends Ask {
+final case class GetCommonBalance(user: User) extends Ask {
   override def cmd: String = "/getCommonBalance"
 }
 
-object GetSymbolsBalance extends Ask {
+final case class GetSymbolsBalance(user: User) extends Ask {
   override def cmd: String = "/getSymbolsBalance"
 }
 
@@ -18,11 +19,11 @@ final case class HelpFrom(user: User) extends Ask {
   override def cmd: String = "/help"
 }
 
-final case class GetViewDeep(interval: String, deep_bars: Int) extends Ask {
+final case class GetViewDeep(interval: String, deep_bars: Int, user: User) extends Ask {
   override def cmd: String = s"/getViewDeep $interval $deep_bars"
 }
 
-final case class GetViewDeepInvalid(args: String) extends Ask {
+final case class GetViewDeepInvalid(args: String, user: User) extends Ask {
   override def cmd: String = s"/getViewDeep $args"
 }
 
