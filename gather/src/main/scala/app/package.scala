@@ -1,5 +1,6 @@
 import bybit.{ ByBitService, KLineHandler }
 import conf.AppConfig
+import postgresql.DictChanges
 import service.{ DatabaseService, GatherService }
 import services.{ CoinService, LogLevelService, PingPongService, SymbolsService }
 import zio.http.Client
@@ -18,6 +19,7 @@ package object app {
       with CoinService
       with PingPongService
       with LogLevelService
+      with DictChanges
 
   type CommonGatherCoinEnv =
     GatherService with ByBitService with DataSource with CoinService with LogLevelService

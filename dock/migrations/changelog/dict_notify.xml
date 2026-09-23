@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.dict_notify.xml">
+
+    <changeSet id="2026_09_23-1-create-fn-dict-changed-notify" author="yakushev">
+        <sql splitStatements="false">
+        <![CDATA[
+          CREATE OR REPLACE FUNCTION data.fn_dict_changed_notify()
+           RETURNS trigger
+           LANGUAGE plpgsql
+          AS $$
+          BEGIN
+            PERFORM pg_notify('bb_dict_changed', TG_TABLE_NAME);
+            RETURN NULL;
+          END;
+          $$
+          ;
+        ]]>
+        </sql>
+        <comment>Create function fn_dict_changed_notify</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_23-2-trigger-dict-changed-symbol" author="yakushev">
+        <sql>
+          CREATE TRIGGER trg_dict_changed_symbol
+          AFTER INSERT OR UPDATE OR DELETE ON data.symbol
+          FOR EACH STATEMENT EXECUTE FUNCTION data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on symbol changes</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_23-3-trigger-dict-changed-coin" author="yakushev">
+        <sql>
+          CREATE TRIGGER trg_dict_changed_coin
+          AFTER INSERT OR UPDATE OR DELETE ON data.coin
+          FOR EACH STATEMENT EXECUTE FUNCTION data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on coin changes</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_23-4-trigger-dict-changed-users" author="yakushev">
+        <sql>
+          CREATE TRIGGER trg_dict_changed_users
+          AFTER INSERT OR UPDATE OR DELETE ON data.users
+          FOR EACH STATEMENT EXECUTE FUNCTION data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on users changes</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_23-5-trigger-common-log-changed" author="yakushev">
+        <sql>
+          CREATE TRIGGER trg_common_log_changed
+          AFTER INSERT OR UPDATE ON data.common_log
+          FOR EACH STATEMENT EXECUTE FUNCTION data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on common_log changes (admin alerts)</comment>
+    </changeSet>
+
+</databaseChangeLog>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.users.xml">
+
+    <changeSet id="2026_09_23-1-cl_new_fields" author="yakushev">
+        <sql>
+          alter table data.common_log add for_admin boolean default false;
+          alter table data.common_log add is_sent_admin boolean default false;
+          alter table data.common_log add sent_admin_ts_db timestamp;
+
+          comment on column data.common_log.for_admin is 'Indication that the message must be sent to admin';
+          comment on column data.common_log.is_sent_admin is 'Indication that the message has been sent to the admin';
+          comment on column data.common_log.sent_admin_ts_db is 'Date and time when message has been sent to admin';
+        </sql>
+        <comment>New fields added.</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_23-2-cl_admin_alerts_index" author="yakushev">
+        <sql>
+          create index idx_common_log_admin_alerts on data.common_log(error_class, action, id_log_level)
+            where for_admin = true and is_sent_admin = false;
+        </sql>
+        <comment>Partial index for pending admin alerts</comment>
+    </changeSet>
+
+</databaseChangeLog>

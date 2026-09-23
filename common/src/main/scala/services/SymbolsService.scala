@@ -9,6 +9,7 @@ case object NotFoundInSymbols    extends SymbolsServiceError
 
 trait SymbolsService {
   def addSymbols(symbols: Set[Symbol]): UIO[Unit]
+  def replace(symbols: Set[Symbol]): UIO[Unit]
   def findById(id: Int): UIO[Option[Symbol]]
   def findSymbolById(id: SymbolId): IO[SymbolsServiceError, Symbol]
   def findByCode(code: String): UIO[Option[Symbol]]
@@ -23,6 +24,9 @@ case class SymbolsServiceImpl(ref: Ref[Set[Symbol]]) extends SymbolsService {
 
   def addSymbols(symbols: Set[Symbol]): UIO[Unit] =
     ref.update(_ ++ symbols)
+
+  def replace(symbols: Set[Symbol]): UIO[Unit] =
+    ref.set(symbols)
 
   def findById(id: SymbolId): UIO[Option[Symbol]] =
     ref.get.map(_.find(_.id == id))

@@ -25,3 +25,8 @@ final case class GetViewDeep(interval: String, deep_bars: Int) extends Ask {
 final case class GetViewDeepInvalid(args: String) extends Ask {
   override def cmd: String = s"/getViewDeep $args"
 }
+
+/** Sends admin error alerts (from data.common_log) to all active admins. */
+final case class SendAdminErrorLog(message: String) extends Ask {
+  override def cmd: String = "/sendAdminErrorLog"
+}

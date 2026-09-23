@@ -7,5 +7,6 @@ case class ErrorLog(
   bb_module: String,
   bb_action: String,
   error_class: String,
-  msg: String
+  msg: String,
+  for_admin: Boolean = false
 )

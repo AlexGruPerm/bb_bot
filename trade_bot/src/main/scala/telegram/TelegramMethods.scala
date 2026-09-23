@@ -175,4 +175,11 @@ trait TelegramMethods {
          |""".stripMargin
     )
 
+  def sendAdminErrorMessage(message: String): Task[Unit] =
+    sendToActiveAdmins(
+      s"""<b>Admin error alert</b>
+         |$message
+         |""".stripMargin
+    )
+
 }

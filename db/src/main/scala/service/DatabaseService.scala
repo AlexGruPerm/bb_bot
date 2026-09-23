@@ -2,6 +2,7 @@ package service
 
 import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
 import bybit_model.{
+  AdminAlert,
   AdviceToUser,
   ApiRespWalletBalance,
   Coin,
@@ -56,6 +57,8 @@ trait DatabaseService {
   // def saveTradeAdviceOrder(order: TradeAdviceOrder): ZIO[DataSource, SQLException, Unit]
   def saveOrderHistory(order: OrderItemInfoInsert): ZIO[DataSource, SQLException, Unit]
   def saveLogInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit]
+  def getAdminAlerts: ZIO[DataSource, SQLException, List[AdminAlert]]
+  def markAdminAlertsSent(ids: List[Long]): ZIO[DataSource, SQLException, Unit]
   def executeReglamentCleanup: ZIO[DataSource, SQLException, Unit]
   def getAdviceIntervals: ZIO[DataSource, SQLException, List[IntervalIntMins]]
   def getSymbolAdviceProcs(mins: Int): ZIO[DataSource, SQLException, List[SymbolAdviceProc]]

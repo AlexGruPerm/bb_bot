@@ -1,6 +1,6 @@
 package service
 
-import model.{ Ask, GetCommonBalance, GetSymbolsBalance, GetViewDeep, GetViewDeepInvalid, HelpFrom }
+import model.{ Ask, GetCommonBalance, GetSymbolsBalance, GetViewDeep, GetViewDeepInvalid, HelpFrom, SendAdminErrorLog }
 import zio.stream.ZStream
 import zio.{ Queue, ZIO, ZLayer }
 
@@ -49,6 +49,7 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
           GetViewDeepInvalid(args),
           s"Invalid parameters [$args] Try /getViewDeep 15 10 (where 15 - interval, 10 - deep bars)"
         )
+      case SendAdminErrorLog(message)       => tg.sendAdminErrorMessage(message)
       // ...
       case _                                => ZIO.logInfo("[ANY] ASK in QUEUE")
     }

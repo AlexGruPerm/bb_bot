@@ -47,7 +47,6 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
 
   override def saveFuturesData(): ZIO[ByBitDsSymbols, Throwable, Unit] = for {
     bbService <- ZIO.service[ByBitService]
-    // _ <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(r => ZIO.logInfo(s"Futures: count=${r.list.size} first =" + r.list.head)/*db.saveFuturesData(_)*/)
     _         <- ZIO.scoped(bbService.getFuturesData()).provide(client).flatMap(db.saveFuturesData)
   } yield ()
 
@@ -97,10 +96,26 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
     }
   } yield ()
 
+  private def notFoundCoinMsg(coin: String) =
+    s"Coin from ByBit ${coin} not found in DB data.coin, add it or update in dictionary"
+
   override def saveWalletBalance(): ZIO[ByBitDsCoins, Throwable, Unit] = for {
     bbService     <- ZIO.service[ByBitService]
     coins         <- ZIO.serviceWithZIO[CoinService](_.getCoins())
     walletBalance <- ZIO.scoped(bbService.getWalletBalance()).provide(client)
+    _             <- ZIO.foreachDiscard(walletBalance.result.balance.coin.filterNot(c => coins.exists(_.code == c.coin))) { c =>
+      ZIO.logError(notFoundCoinMsg(c.coin)) *>
+        saveErrorInDb(
+          ErrorLog(
+            id_loglevel = 3,
+            bb_module = "PostgresqlService",
+            bb_action = "saveWalletBalance",
+            error_class = "SQLException",
+            msg = notFoundCoinMsg(c.coin),
+            for_admin = true
+          )
+        )
+    }
     _             <- db.saveWalletBalance(coins, walletBalance)
   } yield ()
 

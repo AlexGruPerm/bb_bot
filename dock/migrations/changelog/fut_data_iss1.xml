@@ -8,7 +8,7 @@
         <sql>
             CREATE TABLE data.symbol_futures (
                 id          serial4 NOT NULL,
-                code        varchar(24) NOT NULL,
+                code        varchar(256) NOT NULL,
                 is_observed bool DEFAULT false NOT NULL,
                 ts_db       timestamp DEFAULT LOCALTIMESTAMP NOT NULL,
                 CONSTRAINT symbol_futures_pkey PRIMARY KEY (id),

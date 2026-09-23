@@ -1,5 +1,6 @@
 import bybit.ByBitService
 import conf.AppConfig
+import postgresql.DictChanges
 import service.{
   AdvisorService,
   AskQueueService,
@@ -32,6 +33,7 @@ package object app {
     with ReglamentService
     with AdvisorService
     with UsersService
+    with DictChanges
 
   type ZioDBsSQLExc     = ZIO[DatabaseService with DataSource, SQLException, Unit]
   type ZioDBsReglSQLExc = ZIO[DatabaseService with ReglamentService with DataSource, SQLException, Unit]

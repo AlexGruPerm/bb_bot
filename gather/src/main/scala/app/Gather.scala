@@ -6,9 +6,12 @@ import bybit_model.ErrorLog
 import conf.AppConfig
 import conf.ConfigLayer.configLayer
 import conf.InputJsonConfig.getInputJsonFilePath
-import service.{ DatabaseService, Datasource, GatherService }
+import postgresql.{ DictChanges, DictEvent }
+import service.{ DatabaseService, Datasource, DictRefreshLog, GatherService }
 import services.{ CoinService, LogLevelService, PingPongService, SymbolsService }
 import zio._
+
+import javax.sql.DataSource
 
 object Gather extends ZIOAppDefault {
 
@@ -56,6 +59,40 @@ object Gather extends ZIOAppDefault {
     _         <- ZIO.serviceWithZIO[LogLevelService](_.add(logLevels))
   } yield ()
 
+  private def refreshSymbols: ZIO[CommonGatherEnvConf, Nothing, Unit] =
+    (for {
+      db      <- ZIO.service[DatabaseService]
+      ds      <- ZIO.service[DataSource]
+      symbols <- db.getSymbols.provideEnvironment(ZEnvironment(ds))
+      _       <- ZIO.serviceWithZIO[SymbolsService](_.replace(symbols))
+      _       <- ZIO.logInfo(s"Dictionary 'symbol' refreshed on notification, count = ${symbols.size}")
+      _       <- DictRefreshLog.log("symbol")
+    } yield ()).catchAll(err => ZIO.logError(s"Failed to refresh dict symbol: ${err.getMessage}"))
+
+  private def refreshCoins: ZIO[CommonGatherEnvConf, Nothing, Unit] =
+    (for {
+      db    <- ZIO.service[DatabaseService]
+      ds    <- ZIO.service[DataSource]
+      coins <- db.getCoins.provideEnvironment(ZEnvironment(ds))
+      _     <- ZIO.serviceWithZIO[CoinService](_.replace(coins))
+      _     <- ZIO.logInfo(s"Dictionary 'coin' refreshed on notification, count = ${coins.size}")
+      _     <- DictRefreshLog.log("coin")
+    } yield ()).catchAll(err => ZIO.logError(s"Failed to refresh dict coin: ${err.getMessage}"))
+
+  /**
+   * Subscribes to dictionary change notifications and replaces in-memory Refs. ref_symbol_interval is intentionally
+   * ignored (no cache in gather).
+   */
+  private def startDictRefresh: ZIO[CommonGatherEnvConf, Nothing, Unit] =
+    ZIO.serviceWithZIO[DictChanges] { dc =>
+      dc.events.foreach {
+        case DictEvent.TableChanged("symbol") => refreshSymbols
+        case DictEvent.TableChanged("coin")   => refreshCoins
+        case DictEvent.TableChanged(_)        => ZIO.unit
+        case DictEvent.Resync                 => refreshSymbols *> refreshCoins
+      }
+    }
+
   private val MainApp: ZIO[CommonGatherEnvConf, Throwable, Unit] = for {
     conf <- ZIO.service[AppConfig]
     _    <- ZIO.logInfo(s"Begin ByBit gather.")
@@ -63,6 +100,7 @@ object Gather extends ZIOAppDefault {
     _    <- ZIO.fail(UnknownDbException).when(conf.db.isUnknownDbType)
 
     _ <- initRefDictionaries
+    _ <- startDictRefresh.fork
 
     _ <- Saver.saveOrderBooks(conf.bybitAccount.save_order_book_freq_mins)
     _ <- Saver.saveOpenInterests(conf.bybitAccount.save_oi_freq_mins)
@@ -88,7 +126,8 @@ object Gather extends ZIOAppDefault {
         SymbolsService.layer,
         CoinService.layer,
         PingPongService.layer,
-        LogLevelService.layer
+        LogLevelService.layer,
+        DictChanges.live
       )
       .catchSome {
         case err if err == UnknownDbException => ZIO.logError(s"Failed : ${err.getMessage}").unit

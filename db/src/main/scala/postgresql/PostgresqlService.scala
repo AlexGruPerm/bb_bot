@@ -3,6 +3,7 @@ package postgresql
 import bybit_model.Types.{ AdviceId, IntervalIntMins, SymbolId }
 import service.DatabaseService
 import bybit_model.{
+  AdminAlert,
   Advice,
   AdviceInsert,
   AdviceMeta,
@@ -315,7 +316,8 @@ final class PostgresqlService extends DatabaseService {
       _.bb_module   -> "module",
       _.bb_action   -> "action",
       _.error_class -> "error_class",
-      _.msg         -> "msg"
+      _.msg         -> "msg",
+      _.for_admin   -> "for_admin"
     )
   }
 
@@ -699,7 +701,9 @@ final class PostgresqlService extends DatabaseService {
         .returningGenerated(_.id)
     )
     _               <- ZIO.logDebug(s"wallet_balance.id = $walletBalanceId")
-    coinsForInsert   = walletBalance.result.balance.coin.map { coinBalance =>
+    // Save into data.wallet_balance_coin only for coins that exist in data.coin
+    // look saveWalletBalance in GraphQLService.scala
+    coinsForInsert   = walletBalance.result.balance.coin.filter(c => coins.exists(_.code == c.coin)).map { coinBalance =>
       coinBalance.toWalletBalanceCoinInsert(
         id_wallet_balance = walletBalanceId,
         id_coin = coins.find(_.code == coinBalance.coin).map(_.id)
@@ -851,10 +855,46 @@ final class PostgresqlService extends DatabaseService {
         _.bb_module   -> lift(err.bb_module),
         _.bb_action   -> lift(err.bb_action),
         _.error_class -> lift(err.error_class),
-        _.msg         -> lift(err.msg)
+        _.msg         -> lift(err.msg),
+        _.for_admin   -> lift(err.for_admin)
       )
     )
   } yield ()
+
+  override def getAdminAlerts: ZIO[DataSource, SQLException, List[AdminAlert]] = {
+    val q = quote {
+      sql"""
+       select cl.id,
+         FLOOR(EXTRACT(EPOCH FROM (LOCALTIMESTAMP - cl.ts_db)) / 3600)::int || ' hour. ' ||
+         FLOOR(EXTRACT(EPOCH FROM (LOCALTIMESTAMP - cl.ts_db)) % 3600 / 60)::int || ' min. ' ||
+         FLOOR(EXTRACT(EPOCH FROM (LOCALTIMESTAMP - cl.ts_db)) % 60)::int || ' sec.'
+         AS readable_diff,
+         concat(cl."module", '.', cl."action") as module_action,
+         cl.msg
+        from data.common_log cl
+       where cl.for_admin = true
+         and cl.is_sent_admin = false
+         and cl.error_class = 'SQLException'
+         and cl.action = 'saveWalletBalance'
+         and cl.id_log_level = 3
+       order by id
+       """.as[Query[AdminAlert]]
+    }
+    ctx.run(q)
+  }
+
+  override def markAdminAlertsSent(ids: List[Long]): ZIO[DataSource, SQLException, Unit] =
+    if (ids.isEmpty) ZIO.unit
+    else {
+      val sqlStr =
+        s"""UPDATE data.common_log
+           | SET is_sent_admin = true, sent_admin_ts_db = LOCALTIMESTAMP
+           | WHERE id IN (${ids.mkString(",")})""".stripMargin
+      val q      = quote {
+        sql"#$sqlStr".as[Update[Long]]
+      }
+      ctx.run(q).unit
+    }
 
   private def deleteByMeta(meta: ReglamentMetaRow): ZIO[DataSource, SQLException, Long] = for {
     _            <- ZIO.unit

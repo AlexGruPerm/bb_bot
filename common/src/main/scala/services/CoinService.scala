@@ -9,6 +9,7 @@ case object NotFoundInCoins   extends CoinServiceError
 
 trait CoinService {
   def addCoins(coins: Set[Coin]): UIO[Unit]
+  def replace(coins: Set[Coin]): UIO[Unit]
   def getCoins(): UIO[Set[Coin]]
   def getIdByCode(coinCode: CoinCode): IO[CoinServiceError, Coin]
 }
@@ -17,6 +18,9 @@ case class CoinServiceImpl(ref: Ref[Set[Coin]]) extends CoinService {
 
   override def addCoins(coins: Set[Coin]): UIO[Unit] =
     ref.update(_ ++ coins)
+
+  override def replace(coins: Set[Coin]): UIO[Unit] =
+    ref.set(coins)
 
   override def getCoins(): UIO[Set[Coin]] = ref.get
 
