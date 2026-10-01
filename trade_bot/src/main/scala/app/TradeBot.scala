@@ -15,6 +15,7 @@ import service.{
   DatabaseService,
   Datasource,
   DictRefreshLog,
+  FuturesMetricsScheduler,
   ReglamentService,
   TelegramService,
   TraderService,
@@ -39,6 +40,7 @@ object TradeBot extends ZIOAppDefault {
 
     _ <- startDictRefresh.fork
     _ <- ReglamentService.startReglamentCleanup
+    _ <- ZIO.serviceWithZIO[FuturesMetricsScheduler](_.start)
     _ <- ZIO.logInfo(s"Total symbols = [${symbols.size}] tradable = [${symbols.count(_.is_tradable)}]")
 
     adviceIntervals <- db.getAdviceIntervals
@@ -135,7 +137,8 @@ object TradeBot extends ZIOAppDefault {
         CommunicationService.live,
         ReglamentService.live,
         AdvisorService.live,
-        DictChanges.live
+        DictChanges.live,
+        FuturesMetricsScheduler.live
       )
       .catchSome {
         case err if err == UnknownDbException => ZIO.logError(s"Failed : ${err.getMessage}").unit

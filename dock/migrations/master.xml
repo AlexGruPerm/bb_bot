@@ -53,4 +53,6 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
     <include file="changelog/tg_command_log.xml" relativeToChangelogFile="true" />
     <include file="changelog/dict_notify.xml" relativeToChangelogFile="true" />
     <include file="changelog/common_log_change.xml" relativeToChangelogFile="true" />
+    <include file="changelog/futures_metrics.xml" relativeToChangelogFile="true" />
+    <include file="changelog/reglament_meta_ts_column_default.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>

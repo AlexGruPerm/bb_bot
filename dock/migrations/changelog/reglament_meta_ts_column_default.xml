@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.reglament_meta_ts_column_default.xml">
+
+    <changeSet id="2026_10_01-1-reglament_meta-ts_column-default" author="yakushev">
+        <sql>
+          alter table data.reglament_meta alter column ts_column set default 'ts_db';
+        </sql>
+        <comment>Change default ts_column from ts_bybit to ts_db</comment>
+    </changeSet>
+
+    <changeSet id="2026_10_01-2-reglament_for_fut_data_price_oi_metrics" author="yakushev">
+        <sql>
+            insert into data.reglament_meta(table_name,keep_days) values('futures_data_price_oi_metrics',10);
+            insert into data.reglament_meta(table_name,keep_days) values('futures_data_price_oi_metrics_symbol',10);
+        </sql>
+        <comment>New table in reglament cleanup.</comment>
+    </changeSet>
+
+</databaseChangeLog>

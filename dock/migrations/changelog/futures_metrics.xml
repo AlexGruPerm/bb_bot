@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.futures_metrics.xml">
+
+    <changeSet id="2026_09_30-1-create-futures-metrics" author="yakushev">
+        <sql>
+            create table data.futures_metrics (
+              id           serial,
+              metric_name  text not null,
+              metric_table text not null,
+              constraint pk_futures_metrics primary key (id),
+              constraint uk_futures_metrics_name unique (metric_name)
+            );
+        </sql>
+        <comment>Create futures metrics definitions</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-2-create-futures-metrics-meta" author="yakushev">
+        <sql>
+            create table data.futures_metrics_meta (
+              id                     serial,
+              execute_every_mins     int4 not null,
+              id_futures_metrics     int4 not null
+                constraint fk_futures_metrics_meta_fut_met references data.futures_metrics(id),
+              filter_window_min      int4 not null,
+              compare_interval_min   int4 not null,
+              filter_total_oi        numeric not null,
+              price_change_threshold numeric not null,
+              oi_change_threshold    numeric not null,
+              constraint pk_futures_metrics_meta primary key (id)
+            );
+            create index idx_futures_metrics_meta_id_fut_met on data.futures_metrics_meta(id_futures_metrics);
+        </sql>
+        <comment>Create futures metric run configurations</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-3-create-futures-metrics-groups" author="yakushev">
+        <sql>
+            create table data.futures_metrics_groups (
+              id       int4 not null,
+              grp_code text not null,
+              grp_name text not null,
+              constraint pk_futures_metrics_groups primary key (id),
+              constraint uk_futures_metrics_groups_code unique (grp_code)
+            );
+            insert into data.futures_metrics_groups(id, grp_code, grp_name) values (1, 'price down oi down', 'price down, oi down');
+            insert into data.futures_metrics_groups(id, grp_code, grp_name) values (2, 'price down oi up',   'price down, oi up');
+            insert into data.futures_metrics_groups(id, grp_code, grp_name) values (3, 'price up oi down',   'price up, oi down');
+            insert into data.futures_metrics_groups(id, grp_code, grp_name) values (4, 'price up oi up',     'price up, oi up');
+            insert into data.futures_metrics_groups(id, grp_code, grp_name) values (5, 'flat',               'flat');
+        </sql>
+        <comment>Create price/oi state groups</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-4-create-futures-data-price-oi-metrics" author="yakushev">
+        <sql>
+            create table data.futures_data_price_oi_metrics (
+              ts_db                     timestamp default localtimestamp not null,
+              id_futures_metrics_meta   int4 not null
+                constraint fk_fut_data_pom_meta references data.futures_metrics_meta(id),
+              id_futures_metrics_groups int4 not null
+                constraint fk_fut_data_pom_group references data.futures_metrics_groups(id),
+              cnt                       int8 null,
+              pct_of_analyzed_by_count  numeric null,
+              total_oi_usdt             numeric null,
+              prcnt_oi                  numeric null
+            );
+            create index idx_fdpom_meta_ts on data.futures_data_price_oi_metrics(id_futures_metrics_meta, ts_db);
+        </sql>
+        <comment>Create aggregate price/oi metrics results</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-5-create-futures-data-price-oi-metrics-symbol" author="yakushev">
+        <sql>
+            create table data.futures_data_price_oi_metrics_symbol (
+              ts_db                     timestamp default localtimestamp not null,
+              id_futures_metrics_meta   int4 not null
+                constraint fk_fut_data_pom_sym_meta references data.futures_metrics_meta(id),
+              id_symbol                 int4 not null
+                constraint fk_fut_data_pom_fs references data.symbol_futures(id),
+              id_futures_metrics_groups int4 not null
+                constraint fk_fut_data_pom_grp_group references data.futures_metrics_groups(id),
+              total_oi_usdt             numeric null,
+              prcnt_oi                  numeric null
+            );
+            create index idx_fdpmos_meta_ts on data.futures_data_price_oi_metrics_symbol(id_futures_metrics_meta, ts_db);
+        </sql>
+        <comment>Create per-symbol price/oi metrics results</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-6-seed-futures-metrics" author="yakushev">
+        <sql>
+            insert into data.futures_metrics(metric_name, metric_table)
+            values ('compare price and oi', 'futures_data_price_oi_metrics');
+
+            insert into data.futures_metrics_meta(
+              execute_every_mins, id_futures_metrics, filter_window_min, compare_interval_min,
+              filter_total_oi, price_change_threshold, oi_change_threshold
+            ) values (5, 1, 120, 60, 0.005, 0.001, 0.001);
+        </sql>
+        <comment>Seed default metric and its configuration</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-7-trigger-futures-metrics-notify" author="yakushev">
+        <sql>
+            create trigger trg_dict_changed_futures_metrics
+            after insert or update or delete on data.futures_metrics
+            for each statement execute function data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on futures_metrics changes</comment>
+    </changeSet>
+
+    <changeSet id="2026_09_30-8-trigger-futures-metrics-meta-notify" author="yakushev">
+        <sql>
+            create trigger trg_dict_changed_futures_metrics_meta
+            after insert or update or delete on data.futures_metrics_meta
+            for each statement execute function data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on futures_metrics_meta changes</comment>
+    </changeSet>
+
+</databaseChangeLog>

@@ -6,6 +6,7 @@ import service.{
   AskQueueService,
   CommunicationService,
   DatabaseService,
+  FuturesMetricsScheduler,
   ReglamentService,
   TelegramService,
   TraderService,
@@ -34,6 +35,7 @@ package object app {
     with AdvisorService
     with UsersService
     with DictChanges
+    with FuturesMetricsScheduler
 
   type ZioDBsSQLExc     = ZIO[DatabaseService with DataSource, SQLException, Unit]
   type ZioDBsReglSQLExc = ZIO[DatabaseService with ReglamentService with DataSource, SQLException, Unit]

@@ -11,6 +11,8 @@ import bybit_model.{
   DbUser,
   ErrorLog,
   FuturesDataResult,
+  FuturesMetrics,
+  FuturesMetricsMeta,
   KLine,
   KLineTopic,
   LogLevel,
@@ -44,6 +46,12 @@ trait DatabaseService {
   def saveOrderBook(symbol: Symbol, orderBook: OrderBookResult): ZIO[DataSource, SQLException, Unit]
   def saveOpenInterest(symbol: Symbol, orderBook: OpenInterestResult): ZIO[DataSource, SQLException, Unit]
   def saveFuturesData(futuresData: FuturesDataResult): ZIO[DataSource, SQLException, Unit]
+  def getFuturesMetrics: ZIO[DataSource, SQLException, List[FuturesMetrics]]
+  def getFuturesMetricsMeta: ZIO[DataSource, SQLException, List[FuturesMetricsMeta]]
+  def executeFuturesMetricsAnalysis(
+    metric: FuturesMetrics,
+    meta: FuturesMetricsMeta
+  ): ZIO[DataSource, SQLException, Unit]
   def saveBar(
     kline: KLine,
     ref: Ref[Map[KLineTopic, CurrentCandle]],

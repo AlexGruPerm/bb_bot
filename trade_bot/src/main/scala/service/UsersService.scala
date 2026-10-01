@@ -62,8 +62,10 @@ object UsersService {
           .mapError(e => new SQLException(s"Failed to load users from DB on startup: ${e.getMessage}", e))
         _       <- ZIO.logInfo(s"Users loaded from DB on startup, count = ${initial.size}")
         ref     <- Ref.make(initial)
-        interval = conf.telegram.usersRefreshMins.minutes
-        _       <- refreshLoop(ref, db, ds, interval).forkScoped
+        // Periodic refresh is disabled in favor of PostgreSQL NOTIFY (issue 8/9/11).
+        // refreshLoop stays for rollback/debugging.
+        // interval = conf.telegram.usersRefreshMins.minutes
+        // _       <- refreshLoop(ref, db, ds, interval).forkScoped
       } yield new UsersServiceLive(ref, db, ds)
     }
 }

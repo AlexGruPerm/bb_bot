@@ -17,6 +17,8 @@ import bybit_model.{
   ErrorLog,
   FuturesDataResult,
   FuturesDataRow,
+  FuturesMetrics,
+  FuturesMetricsMeta,
   InsertedCandle,
   Interval,
   KLine,
@@ -91,6 +93,14 @@ final class PostgresqlService extends DatabaseService {
 
   private val symbolShort = quote {
     querySchema[SymbolShort]("data.symbol")
+  }
+
+  private val futuresMetricsSchema = quote {
+    querySchema[FuturesMetrics]("data.futures_metrics")
+  }
+
+  private val futuresMetricsMetaSchema = quote {
+    querySchema[FuturesMetricsMeta]("data.futures_metrics_meta")
   }
 
   private val intervalSchema = quote {
@@ -659,6 +669,164 @@ final class PostgresqlService extends DatabaseService {
     })
 
   } yield ()
+
+  override def getFuturesMetrics: ZIO[DataSource, SQLException, List[FuturesMetrics]] =
+    run(futuresMetricsSchema)
+
+  override def getFuturesMetricsMeta: ZIO[DataSource, SQLException, List[FuturesMetricsMeta]] =
+    run(futuresMetricsMetaSchema)
+
+  /**
+   * Runs both analysis queries (aggregate and per-symbol) for one (metric, meta) pair. Table names come from
+   * `metric.metricTable` (the aggregate target, table data.$metricTable) and its `_symbol` counterpart. SQL is built by
+   * substituting meta parameters, mirroring the existing raw-SQL convention (see deleteByMeta/markAdminAlertsSent).
+   */
+  override def executeFuturesMetricsAnalysis(
+    metric: FuturesMetrics,
+    meta: FuturesMetricsMeta
+  ): ZIO[DataSource, SQLException, Unit] = for {
+    _ <- runMetricsQuery(metricsAggregateSql(metric.metricTable, meta))
+    _ <- runMetricsQuery(metricsSymbolSql(metric.metricTable, meta))
+  } yield ()
+
+  private def runMetricsQuery(sqlStr: String): ZIO[DataSource, SQLException, Long] = {
+    val q = quote {
+      sql"#$sqlStr".as[Insert[Long]]
+    }
+    ctx.run(q).tapError(e => ZIO.logError(s"Futures metrics SQL error: ${e.getMessage}"))
+  }
+
+  /// Shared CTE for both metrics queries: latest data point per symbol + previous point for comparison.
+  private def metricsCommonCte(
+    windowMin: Int,
+    cmpMin: Int,
+    filterOi: BigDecimal,
+    priceTh: BigDecimal,
+    oiTh: BigDecimal
+  ): String =
+    s"""
+       |latest as (
+       |  select distinct on (fd.id_symbol)
+       |         fd.id_symbol,
+       |         fd.ts_db          as ts_now,
+       |         fd.last_price     as price_now,
+       |         fd.open_interest_value as oi_now
+       |  from data.futures_data fd
+       |  where fd.ts_db >= (localtimestamp - make_interval(mins => $windowMin))
+       |    and fd.last_price        is not null
+       |    and fd.open_interest_value is not null
+       |  order by fd.id_symbol, fd.ts_db desc
+       |),
+       |tot_oi as (
+       |  select coalesce(sum(l.oi_now), 0) as total_oi from latest l
+       |),
+       |keep_ds as (
+       |  select sf.code, l.id_symbol, l.ts_now, l.price_now, l.oi_now, t.total_oi,
+       |         round(l.oi_now*100.0/t.total_oi,2) as prcnt_tot_oi_after_filter
+       |  from latest l
+       |  left join data.symbol_futures sf on sf.id = l.id_symbol
+       |  cross join tot_oi t
+       |  where l.oi_now >= t.total_oi * $filterOi
+       |),
+       |prev as (
+       |  select distinct on (fd.id_symbol)
+       |         fd.id_symbol,
+       |         fd.last_price     as price_prev,
+       |         fd.open_interest_value as oi_prev,
+       |         fd.ts_db
+       |  from data.futures_data fd
+       |  join keep_ds k on k.id_symbol = fd.id_symbol
+       |  where fd.ts_db <= k.ts_now - make_interval(mins => $cmpMin)
+       |    and fd.last_price        is not null
+       |    and fd.open_interest_value is not null
+       |  order by fd.id_symbol, fd.ts_db desc
+       |),
+       |cls as (
+       |  select k.id_symbol, k.price_now, k.oi_now, k.prcnt_tot_oi_after_filter,
+       |         p.price_prev, p.oi_prev,
+       |         case when p.price_prev is not null and p.price_prev <> 0
+       |              then (k.price_now - p.price_prev) / p.price_prev end as price_chg,
+       |         case when p.oi_prev is not null and p.oi_prev <> 0
+       |              then (k.oi_now - p.oi_prev) / p.oi_prev end as oi_chg
+       |  from keep_ds k
+       |  left join prev p on p.id_symbol = k.id_symbol
+       |),
+       |grp as (
+       |  select cls.*,
+       |         case when price_chg >  $priceTh  then 'up'   when price_chg < -1 * $priceTh then 'down' else 'flat' end as price_dir,
+       |         case when oi_chg    >  $oiTh     then 'up'   when oi_chg    < -1 * $oiTh    then 'down' else 'flat' end as oi_dir
+       |  from cls
+       |)""".stripMargin
+
+  private def metricsGroupCase: String =
+    """
+      |  case
+      |    when price_dir = 'down' and oi_dir = 'down' then 1
+      |    when price_dir = 'down' and oi_dir = 'up'   then 2
+      |    when price_dir = 'up'   and oi_dir = 'down' then 3
+      |    when price_dir = 'up'   and oi_dir = 'up'   then 4
+      |    else 5
+      |  end as id_futures_metrics_groups""".stripMargin
+
+  private def metricsAggregateSql(metricTable: String, meta: FuturesMetricsMeta): String =
+    s"""
+       |insert into data.$metricTable(id_futures_metrics_meta,id_futures_metrics_groups,cnt,pct_of_analyzed_by_count,total_oi_usdt,prcnt_oi)
+       |with
+       |${metricsCommonCte(
+        meta.filterWindowMin,
+        meta.compareIntervalMin,
+        meta.filterTotalOi,
+        meta.priceChangeThreshold,
+        meta.oiChangeThreshold
+      )},
+       |tot_kept as (
+       |  select count(*) as cnt from grp
+       |),
+       |grouped as (
+       |  select
+       |    ${metricsGroupCase},
+       |    count(*)     as cnt,
+       |    sum(oi_now)  as total_oi_usdt
+       |  from grp
+       |  group by price_dir, oi_dir
+       |)
+       |select
+       |  ${meta.id} as id_futures_metrics_meta,
+       |  g.id_futures_metrics_groups,
+       |  g.cnt,
+       |  round(100.0 * g.cnt / nullif(t.cnt, 0), 1) as pct_of_analyzed_by_count,
+       |  round(g.total_oi_usdt, 0)                  as total_oi_usdt,
+       |  round(g.total_oi_usdt * 100.0 / nullif((sum(g.total_oi_usdt) over()),0),2) as prcnt_oi
+       |from grouped g
+       |cross join tot_kept t
+       |order by g.cnt desc""".stripMargin
+
+  private def metricsSymbolSql(metricTable: String, meta: FuturesMetricsMeta): String =
+    s"""
+       |insert into data.${metricTable}_symbol(id_futures_metrics_meta,id_symbol,id_futures_metrics_groups,total_oi_usdt,prcnt_oi)
+       |with
+       |${metricsCommonCte(
+        meta.filterWindowMin,
+        meta.compareIntervalMin,
+        meta.filterTotalOi,
+        meta.priceChangeThreshold,
+        meta.oiChangeThreshold
+      )},
+       |grouped as (
+       |  select id_symbol,
+       |    ${metricsGroupCase},
+       |    sum(oi_now) as total_oi_usdt
+       |  from grp
+       |  group by id_symbol, price_dir, oi_dir
+       |)
+       |select
+       |  ${meta.id} as id_futures_metrics_meta,
+       |  g.id_symbol,
+       |  g.id_futures_metrics_groups,
+       |  round(g.total_oi_usdt, 0)                  as total_oi_usdt,
+       |  round(g.total_oi_usdt * 100.0 / nullif((sum(g.total_oi_usdt) over()),0),2) as prcnt_oi
+       |from grouped g
+       |order by 1,2,3""".stripMargin
 
   /**
    * Save data in 2 tables: data.candle or data.kline. If data is confirmed, save into data.candle with updating
