@@ -788,7 +788,7 @@ final class PostgresqlService extends DatabaseService {
        |    count(*)     as cnt,
        |    sum(oi_now)  as total_oi_usdt
        |  from grp
-       |  group by price_dir, oi_dir
+       |  group by id_futures_metrics_groups
        |)
        |select
        |  ${meta.id} as id_futures_metrics_meta,
