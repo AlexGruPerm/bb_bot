@@ -45,6 +45,8 @@ object Settings {
     List(zio, zio_config, zio_config_magnolia, zio_config_typesafe, zio_json, zio_test, zio_test_sbt)
   val httpDependencies: immutable.Seq[ModuleID] = List(zio, zio_http, zio_stream, zio_json)
   val dbDependencies: immutable.Seq[ModuleID] = List(zio, zio_stream, quill, pg, hikaricp)
+  val dbTestDependencies: immutable.Seq[ModuleID] =
+    List(zio_test, zio_test_sbt, pg, testcontainers_postgresql, liquibase_core)
   val bot4sDependencies: immutable.Seq[ModuleID]  =
     List(bot4s_core, bot4s_akka, ZioIoCats, zio_sttp, sttp_client_backend_zio, catsEffect)
 

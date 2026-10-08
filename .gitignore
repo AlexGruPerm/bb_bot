@@ -25,3 +25,12 @@ dock_yandex
 Cursor.md
 *.cache
 *.history3
+.bloop/
+.metals/
+.scalex/
+.gigaide/
+foraeza/
+generate_report.py
+session-tests_zio_bb_bot.md
+dock/linear.json
+dock/LLM in application.txt

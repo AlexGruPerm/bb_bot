@@ -18,7 +18,8 @@ lazy val db = (project in file("db"))
   .settings(
     name := "db",
     Settings.commonSettings,
-    libraryDependencies ++= dbDependencies
+    libraryDependencies ++= dbDependencies,
+    libraryDependencies ++= dbTestDependencies.map(_ % Test)
   )
   .dependsOn(common)
 
@@ -37,9 +38,10 @@ lazy val trade_bot = (project in file("trade_bot"))
     name := "trade_bot",
     Settings.commonSettings,
     libraryDependencies ++= bot4sDependencies,
+    libraryDependencies ++= Settings.dbTestDependencies.map(_ % Test),
     commonAssemblySettings
   )
-  .dependsOn(db, bybit)
+  .dependsOn(db % "compile->compile;test->test", bybit)
 
 lazy val gather = (project in file("gather"))
   .settings(

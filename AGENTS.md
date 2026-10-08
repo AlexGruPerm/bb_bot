@@ -11,7 +11,7 @@
 - db/        — Quill-схемы, репозитории, PostgreSQL
 - bybit/     — общие классы для работы с Bybit API
 - gather/    — сборщик данных с Bybit в БД, клиент Bybit API
-- trade_bot/ — бот, Telegram, точка входа com.bb.bot.Main
+- trade_bot/ — бот, Telegram
 - dock/migrations/ — Liquibase-миграции (YAML)
 
 ## Точки входа
@@ -27,7 +27,29 @@
 
 ## Ограничения 
 - Не меняйте мажорные версии библиотек в build.sbt без согласования.
+- common не зависит от db: тесты Ref-сервисов, которым нужна БД, живут в db/src/test.
 
 ## Код-стиль 
 - Форматирование — scalafmt (конфиг в .scalafmt.conf). 
+- Формат применяется автоматически при компиляции (maxColumn = 120).
 - Комментарии к сложным участкам ZIO-пайплайнов обязательны.
+
+## Команды
+- Компиляция: sbt compile
+- Тесты модуля: sbt -batch "db/test"
+- Один тест: sbt -batch "trade_bot/testOnly service.UsersServiceSpec"
+- Формат: sbt scalafmtAll; Проверка: sbt scalafmtCheckAll
+
+## Архитектурные заметки (db)
+- Эффекты репозиториев: ZIO[DataSource, SQLException, ...].
+- DatabaseService.layer требует AppConfig (не только DbConfig).
+- Quill-контекст: QuillCtx.ctx = new PostgresZioJdbcContext(SnakeCase).
+
+## Тесты
+- Интеграционные: testcontainers (postgres:17) + программная накатка Liquibase через liquibase-core.
+- Общие фикстуры: db/src/test/scala/testsupport/ (PostgresTestContainer, LiquibaseTestRunner, DbTestFixtures, SqlSupport).
+- trade_bot видит тестовые классы db через dependsOn(db % "compile->compile;test->test").
+
+## Миграции и локальная БД
+- Мастер-чейнджлог: dock/migrations/master.xml.
+- Локальная БД: dock/docker-compose.yml; init создаёт схему data, пользователя bb_user/bb_pwd.

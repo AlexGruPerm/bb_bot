@@ -12,6 +12,9 @@ object Dependencies {
   val zio_test = "dev.zio" %% "zio-test" % Version.zio
   val zio_test_sbt = "dev.zio" %% "zio-test-sbt" % Version.zio
 
+  val testcontainers_postgresql = "com.dimafeng" %% "testcontainers-scala-postgresql" % Version.testcontainers
+  val liquibase_core            = "org.liquibase" % "liquibase-core" % Version.liquibase
+
   val pg = "org.postgresql" % "postgresql" % Version.pg
 
   val quill = "io.getquill" %% "quill-jdbc-zio" % Version.quill_version
@@ -42,5 +45,7 @@ object Version {
   val bot4s          = "6.0.0"
   val sttp           = "3.11.0"
   val zioInteropCats = "23.1.0.5"
-  val ce             = "3.5.4" // try 3.6.3
+  val ce             = "3.5.4" // try 3.7.1
+  val testcontainers = "0.41.8"
+  val liquibase      = "4.29.2"
 }
