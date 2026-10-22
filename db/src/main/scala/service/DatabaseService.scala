@@ -55,6 +55,9 @@ trait DatabaseService {
     meta: FuturesMetricsMeta
   ): ZIO[DataSource, SQLException, Unit]
   def getLlmPrompts: ZIO[DataSource, SQLException, List[LlmPrompt]]
+
+  /** Returns the futures metrics meta configuration (data.futures_metrics_meta) by its id, if it exists. */
+  def getFuturesMetricsMetaById(id: Int): ZIO[DataSource, SQLException, Option[FuturesMetricsMeta]]
   def getFuturesMetricsLlmSnapshot(metaId: Int): ZIO[DataSource, SQLException, List[FuturesMetricsLlmRow]]
   def insertLlmAdvice(promptId: Int, advice: String, adviceText: String): ZIO[DataSource, SQLException, Int]
   def insertLlmAdviceSourceResponse(

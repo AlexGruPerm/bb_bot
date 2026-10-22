@@ -1,6 +1,6 @@
 package service
 
-import bybit_model.{ FuturesMetricsLlmRow, LlmPrompt }
+import bybit_model.{ FuturesMetricsLlmRow, FuturesMetricsMeta, LlmPrompt }
 import postgresql.{ DictChanges, DictEvent }
 import zio.http.Client
 import zio.{ durationInt, Fiber, Ref, Schedule, ZIO, ZLayer }
@@ -80,12 +80,13 @@ final class LlmAdviceSchedulerLive(
   private def runOnce(prompt: LlmPrompt): ZIO[DataSource with Client, Nothing, Unit] = {
     val effect = ZIO.scoped {
       for {
+        meta      <- loadMeta(prompt)
         rows      <- db.getFuturesMetricsLlmSnapshot(prompt.idFuturesMetricsMeta)
         promptTxt <- selectPromptText(prompt)
         csv        = renderCsv(rows)
         request    = buildRequest(promptTxt, csv)
         response  <- llm.complete(request)
-        _         <- persist(prompt, request, response)
+        _         <- persist(prompt, meta, request, response)
       } yield ()
     }
     effect.catchAll {
@@ -98,14 +99,44 @@ final class LlmAdviceSchedulerLive(
     }
   }
 
-  private def persist(prompt: LlmPrompt, request: String, response: String): ZIO[DataSource, Throwable, Unit] =
+  /**
+   * Loads the futures metrics meta of the prompt (data.futures_metrics_meta); its compare interval / execution period
+   * are shown to the users in the advice header, so a missing row is a configuration error.
+   */
+  private def loadMeta(prompt: LlmPrompt): ZIO[DataSource, Throwable, FuturesMetricsMeta] =
+    db.getFuturesMetricsMetaById(prompt.idFuturesMetricsMeta).flatMap {
+      case Some(meta) => ZIO.succeed(meta)
+      case None       =>
+        ZIO.fail(
+          new RuntimeException(
+            s"LLM prompt ${prompt.id}: futures_metrics_meta ${prompt.idFuturesMetricsMeta} not found"
+          )
+        )
+    }
+
+  private def persist(
+    prompt: LlmPrompt,
+    meta: FuturesMetricsMeta,
+    request: String,
+    response: String
+  ): ZIO[DataSource, Throwable, Unit] =
     parseAdvice(response) match {
       case Some((advice, adviceText)) =>
         for {
           id <- db.insertLlmAdvice(prompt.id, advice, adviceText)
           _  <- db.insertLlmAdviceSourceResponse(Some(id), request, response)
           _  <- db.markLlmAdviceSent(id)
-          _  <- ask.askQ.offer(model.LlmFuturesMetricsAdvice(id, advice, adviceText))
+          _  <- ask
+            .askQ
+            .offer(
+              model.LlmFuturesMetricsAdvice(
+                prompt.id,
+                meta.compareIntervalMin,
+                meta.executeEveryMins,
+                advice,
+                adviceText
+              )
+            )
         } yield ()
       case None                       =>
         db.insertLlmAdviceSourceResponse(None, request, response)

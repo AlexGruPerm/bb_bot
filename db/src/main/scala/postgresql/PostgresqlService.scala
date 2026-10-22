@@ -680,6 +680,9 @@ final class PostgresqlService extends DatabaseService {
   override def getFuturesMetricsMeta: ZIO[DataSource, SQLException, List[FuturesMetricsMeta]] =
     run(futuresMetricsMetaSchema)
 
+  override def getFuturesMetricsMetaById(id: Int): ZIO[DataSource, SQLException, Option[FuturesMetricsMeta]] =
+    run(futuresMetricsMetaSchema.filter(_.id == lift(id))).map(_.headOption)
+
   /**
    * Runs both analysis queries (aggregate and per-symbol) for one (metric, meta) pair. Table names come from
    * `metric.metricTable` (the aggregate target, table data.$metricTable) and its `_symbol` counterpart. SQL is built by

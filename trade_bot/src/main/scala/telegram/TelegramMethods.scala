@@ -222,19 +222,36 @@ trait TelegramMethods {
          |""".stripMargin
     )
 
-  def sendLlmFuturesMetricsAdvice(adviceId: Int, advice: String, adviceText: String): Task[Unit] =
+  /**
+   * Broadcasts an LLM advice with a diagnostics header: the LLM prompt id (data.llm_advice.llm_prompt_fm_id) and the
+   * meta parameters of the metrics snapshot the advice was built from (compare interval and execution period, both in
+   * minutes). Telegram HTML has no text colours, so the header is hidden behind a spoiler to keep it out of the way
+   * while still being one tap away.
+   */
+  def sendLlmFuturesMetricsAdvice(
+    llmPromptFmId: Int,
+    compareIntervalMin: Int,
+    executeEveryMins: Int,
+    advice: String,
+    adviceText: String
+  ): Task[Unit] = {
+    val header =
+      s"<tg-spoiler>[AdvID = $llmPromptFmId CompIntMin = $compareIntervalMin everyMin = $executeEveryMins]</tg-spoiler>"
     if (advice.equalsIgnoreCase("hold"))
       sendToActiveUsers(
-        s"""<b>hold</b>
+        s"""$header
            |
-           |/get_hold_descr_$adviceId""".stripMargin
+           |<b>hold</b>""".stripMargin
       )
     else
       sendToActiveUsers(
-        s"""<b>${escapeHtml(advice)}</b>
+        s"""$header
+           |
+           |<b>${escapeHtml(advice)}</b>
            |
            |${escapeHtml(adviceText)}""".stripMargin
       )
+  }
 
   def sendLlmAdviceText(adviceId: Int, adviceText: String, user: User): Task[Unit] =
     sendToUser(

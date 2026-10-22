@@ -32,8 +32,18 @@ final case class SendAdminErrorLog(message: String) extends Ask {
   override def cmd: String = "/sendAdminErrorLog"
 }
 
-/** Broadcasts an LLM advice: buy/sell go out with the explanation, hold only as a short note. */
-final case class LlmFuturesMetricsAdvice(adviceId: Int, advice: String, adviceText: String) extends Ask {
+/**
+ * Broadcasts an LLM advice: buy/sell go out with the explanation, hold only as a short note. The header line carries
+ * the advice id plus the meta parameters of the metrics snapshot it was built from (compare interval / execution
+ * period).
+ */
+final case class LlmFuturesMetricsAdvice(
+  adviceId: Int,
+  compareIntervalMin: Int,
+  executeEveryMins: Int,
+  advice: String,
+  adviceText: String
+) extends Ask {
   override def cmd: String = "/llm_fut_metr_advice"
 }
 
