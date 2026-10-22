@@ -13,7 +13,7 @@ import model.{
   SendAdminErrorLog
 }
 import zio.stream.ZStream
-import zio.{ Queue, ZIO, ZLayer }
+import zio.{ Queue, Task, ZIO, ZLayer }
 
 import java.sql.SQLException
 import javax.sql.DataSource
@@ -25,28 +25,40 @@ trait CommunicationService {
 final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db: DatabaseService)
     extends CommunicationService {
 
-  private def getMaxWalletBalanceId(ask: Ask): ZIO[DataSource, SQLException, Long] =
-    ask match {
-      case GetCommonBalance(_) | GetSymbolsBalance(_) => db.getMaxWalletBalanceId
-      case _                                          => ZIO.succeed(0L)
-    }
+  /**
+   * The latest wallet balance id is needed only by the balance commands, so it is fetched inside those branches instead
+   * of unconditionally for every ask. Failures of the id query are reported to the user via `onError`.
+   */
+  private def withMaxWalletBalanceId(
+    onError: Throwable => Task[Unit]
+  )(use: Long => ZIO[DataSource, Throwable, Unit]): ZIO[DataSource, Throwable, Unit] =
+    db.getMaxWalletBalanceId.foldZIO(onError, use)
 
   private def handler(ask: Ask): ZIO[DataSource, Throwable, Unit] = for {
-    _                  <- ZIO.logInfo(s"Handling ask: ${ask.cmd}")
-    maxWalletBalanceId <- getMaxWalletBalanceId(ask)
-    _                  <- ask match {
+    _ <- ZIO.logDebug(s"Handling ask: ${ask.cmd}")
+    _ <- ask match {
       case GetCommonBalance(user)                                                      =>
-        db.getCommonWalletBalance(maxWalletBalanceId)
-          .foldZIO(
-            err => tg.sendErrorMessage(GetCommonBalance(user), s"Error receiving balance: ${err.getMessage}", user),
-            cwb => tg.sendCommonBalance(cwb)
-          )
+        withMaxWalletBalanceId(err =>
+          tg.sendErrorMessage(GetCommonBalance(user), s"Error receiving balance: ${err.getMessage}", user)
+        ) { id =>
+          db.getCommonWalletBalance(id)
+            .tapBoth(
+              err => tg.sendErrorMessage(GetCommonBalance(user), s"Error receiving balance: ${err.getMessage}", user),
+              tg.sendCommonBalance
+            )
+            .unit
+        }
       case GetSymbolsBalance(user)                                                     =>
-        db.getSymbolsBalance(maxWalletBalanceId)
-          .foldZIO(
-            err => tg.sendErrorMessage(GetSymbolsBalance(user), s"Error receiving balance: ${err.getMessage}", user),
-            cwb => tg.sendSymbolsBalance(cwb)
-          )
+        withMaxWalletBalanceId(err =>
+          tg.sendErrorMessage(GetSymbolsBalance(user), s"Error receiving balance: ${err.getMessage}", user)
+        ) { id =>
+          db.getSymbolsBalance(id)
+            .tapBoth(
+              err => tg.sendErrorMessage(GetSymbolsBalance(user), s"Error receiving balance: ${err.getMessage}", user),
+              tg.sendSymbolsBalance
+            )
+            .unit
+        }
       case HelpFrom(user)                                                              => tg.sendHelp(user)
       case GetViewDeep(interval, deep_bars, user)                                      =>
         db.getViewDeep(interval, deep_bars)
