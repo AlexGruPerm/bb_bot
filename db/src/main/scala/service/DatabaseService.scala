@@ -12,9 +12,11 @@ import bybit_model.{
   ErrorLog,
   FuturesDataResult,
   FuturesMetrics,
+  FuturesMetricsLlmRow,
   FuturesMetricsMeta,
   KLine,
   KLineTopic,
+  LlmPrompt,
   LogLevel,
   OpenInterestResult,
   OrderBookResult,
@@ -52,6 +54,15 @@ trait DatabaseService {
     metric: FuturesMetrics,
     meta: FuturesMetricsMeta
   ): ZIO[DataSource, SQLException, Unit]
+  def getLlmPrompts: ZIO[DataSource, SQLException, List[LlmPrompt]]
+  def getFuturesMetricsLlmSnapshot(metaId: Int): ZIO[DataSource, SQLException, List[FuturesMetricsLlmRow]]
+  def insertLlmAdvice(promptId: Int, advice: String, adviceText: String): ZIO[DataSource, SQLException, Int]
+  def insertLlmAdviceSourceResponse(
+    llmAdviceId: Option[Int],
+    request: String,
+    response: String
+  ): ZIO[DataSource, SQLException, Unit]
+  def markLlmAdviceSent(id: Int): ZIO[DataSource, SQLException, Unit]
   def saveBar(
     kline: KLine,
     ref: Ref[Map[KLineTopic, CurrentCandle]],
@@ -76,6 +87,7 @@ trait DatabaseService {
   def getUsers: ZIO[DataSource, SQLException, List[DbUser]]
   def upsertUser(user: UsersInsert): ZIO[DataSource, SQLException, Unit]
   def saveTgCommandLog(idUser: Int, command: String): ZIO[DataSource, SQLException, Unit]
+  def getLlmAdviceText(id: Int): ZIO[DataSource, SQLException, Option[String]]
 }
 
 object DatabaseService {

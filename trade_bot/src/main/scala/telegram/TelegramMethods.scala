@@ -18,6 +18,18 @@ trait TelegramMethods {
 
   private val double2str: Double => String = d => d.setScale(2, BigDecimal.RoundingMode.HALF_UP).toString()
 
+  /**
+   * Escapes '<', '>' and '&' in arbitrary text before embedding it into a ParseMode.HTML message.
+   *
+   * LLM-generated advice text may contain things like "<2% ОИ" (a bare '<' followed by a digit) or "a < b", which
+   * Telegram's HTML parser rejects with "Unsupported start tag", aborting the whole bot.
+   */
+  private def escapeHtml(text: String): String =
+    text
+      .replace("&", "&amp;")
+      .replace("<", "&lt;")
+      .replace(">", "&gt;")
+
   private val doubleOpt2str: Option[Double] => String = {
     case Some(d) =>
       if (d > 0)
@@ -46,13 +58,13 @@ trait TelegramMethods {
   private def formatSymbolsBalance(sb: List[SymbolsBalance]): UIO[String] =
     ZIO.succeed(s"""Current balance by symbols:
                    |<pre>id  code     coin  equity   usdvalue
-                   |${sb.map { s =>
+                   |${escapeHtml(sb.map { s =>
                     s"${s.symbol_id.getOrElse("-").toString.padTo(2, ' ')} " +
                       s" ${s.symbol_code.getOrElse("-").padTo(8, ' ')} " +
                       s"${s.coin_code.padTo(5, ' ')} " +
                       s"${double2str(s.equity).padTo(8, ' ')} " +
                       s"${double2str(s.usdvalue)}"
-                  }.mkString("\n")}
+                  }.mkString("\n"))}
                    |</pre>
                    |""".stripMargin)
 
@@ -66,11 +78,11 @@ trait TelegramMethods {
            |  <i>${k.advice_description}</i>
            |
            |<pre>#   Candle                  Symbol       Time                  last Price     Advice
-           |${v.map { a =>
+           |${escapeHtml(v.map { a =>
             s"${a.advice_id}  ${a.id_candle}(${a.start_ts})   ${a.symbol_code}(${a.id_symbol})  " +
               s" ${formatter.format(a.ts_db.toLocalDateTime.withNano(0))}   ${a.last_price}       " +
               s"   ${a.advice} "
-          }.mkString("\n")}
+          }.mkString("\n"))}
            |</pre>
            |/help
            |""".stripMargin
@@ -84,14 +96,14 @@ trait TelegramMethods {
          | ($interval minutes) $deep_bars bars
          |
          |<pre>code      p_first   c_last    dif_prcnt   move_dir    smpl_volat
-         |${vd_data.map { v =>
+         |${escapeHtml(vd_data.map { v =>
           s"${v.code.getOrElse("-").padTo(8, ' ')} " +
             s"${doubleOpt2str(v.p_first).padTo(9, ' ')} " +
             s"${doubleOpt2str(v.c_last).padTo(9, ' ')} " +
             s"${doubleOpt2str(v.dif_prcnt).padTo(12, ' ')} " +
             s"${v.move_dir.padTo(9, ' ')}  " +
             s"${doubleOpt2str(v.smpl_volat).padTo(8, ' ')} "
-        }.mkString("\n")}
+        }.mkString("\n"))}
          |</pre>
          | /help
          |""".stripMargin
@@ -106,6 +118,7 @@ trait TelegramMethods {
                    |/getViewDeep X Y     - where X - interval in minutes, Y - deep bars
                    |/gvd X Y             - alias for getViewDeep
                    |/getViewDeep_15_10   - Fixed parameters: 15 minutes, 10 bars
+                   |/get_hold_descr_X    - explanation of a "hold" advice, where X - advice id
                    |
                    |/help - help page
                    |
@@ -123,6 +136,7 @@ trait TelegramMethods {
                    |/getViewDeep X Y     - where X - interval in minutes, Y - deep bars
                    |/gvd X Y             - alias for getViewDeep
                    |/getViewDeep_15_10   - Fixed parameters: 15 minutes, 10 bars
+                   |/get_hold_descr_X    - explanation of a "hold" advice, where X - advice id
                    |
                    |/help - help page
                    |
@@ -172,16 +186,38 @@ trait TelegramMethods {
   def sendErrorMessage(command: Ask, message: String, user: User): Task[Unit] =
     sendToUser(
       user.id,
-      s"""<b>${command.cmd}</b>
-         |$message
+      s"""<b>${escapeHtml(command.cmd)}</b>
+         |${escapeHtml(message)}
          |""".stripMargin
     )
 
   def sendAdminErrorMessage(message: String): Task[Unit] =
     sendToActiveAdmins(
       s"""<b>Admin error alert</b>
-         |$message
+         |${escapeHtml(message)}
          |""".stripMargin
+    )
+
+  def sendLlmFuturesMetricsAdvice(adviceId: Int, advice: String, adviceText: String): Task[Unit] =
+    if (advice.equalsIgnoreCase("hold"))
+      sendToActiveUsers(
+        s"""<b>hold</b>
+           |
+           |/get_hold_descr_$adviceId""".stripMargin
+      )
+    else
+      sendToActiveUsers(
+        s"""<b>${escapeHtml(advice)}</b>
+           |
+           |${escapeHtml(adviceText)}""".stripMargin
+      )
+
+  def sendLlmAdviceText(adviceId: Int, adviceText: String, user: User): Task[Unit] =
+    sendToUser(
+      user.id,
+      s"""<b>advice #$adviceId</b>
+         |
+         |${escapeHtml(adviceText)}""".stripMargin
     )
 
 }

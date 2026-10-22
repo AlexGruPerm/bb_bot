@@ -6,7 +6,8 @@ import zio.config.magnolia.deriveConfig
 case class AppConfig(
   bybitAccount: ByBitConfig,
   db: DbConfig,
-  telegram: TelegramConfig
+  telegram: TelegramConfig,
+  ai: AiConfig
 )
 
 object AppConfig {

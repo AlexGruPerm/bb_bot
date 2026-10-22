@@ -26,7 +26,7 @@ trait DictChanges {
 object DictChanges {
 
   /** Channel used by migration triggers (see dock/migrations/changelog/dict_notify.xml). */
-  val channel: String = "bb_dict_changed"
+  private val channel: String = "bb_dict_changed"
 
   private val PollEvery      = 200.millis
   private val reconnectDelay = 3.seconds

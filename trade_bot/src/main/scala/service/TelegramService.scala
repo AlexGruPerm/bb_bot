@@ -36,6 +36,8 @@ abstract class TelegramService(val conf: TelegramConfig)
   def sendHelp(user: User): Task[Unit]
   def sendViewDeep(interval: String, deep_bars: Int, vd_data: List[ViewDeepLine], user: User): Task[Unit]
   def sendAdminErrorMessage(message: String): Task[Unit]
+  def sendLlmFuturesMetricsAdvice(adviceId: Int, advice: String, adviceText: String): Task[Unit]
+  def sendLlmAdviceText(adviceId: Int, adviceText: String, user: User): Task[Unit]
 }
 
 class TelegramServiceImpl(

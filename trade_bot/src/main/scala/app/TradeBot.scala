@@ -16,12 +16,15 @@ import service.{
   Datasource,
   DictRefreshLog,
   FuturesMetricsScheduler,
+  LlmAdviceScheduler,
+  LlmClient,
   ReglamentService,
   TelegramService,
   TraderService,
   UsersService
 }
 import services.{ CoinService, SymbolsService }
+import zio.http.Client
 import zio.{ Scope, ZEnvironment, ZIO, ZIOAppArgs, ZIOAppDefault }
 
 import javax.sql.DataSource
@@ -41,6 +44,7 @@ object TradeBot extends ZIOAppDefault {
     _ <- startDictRefresh.fork
     _ <- ReglamentService.startReglamentCleanup
     _ <- ZIO.serviceWithZIO[FuturesMetricsScheduler](_.start)
+    _ <- ZIO.serviceWithZIO[LlmAdviceScheduler](_.start)
     _ <- ZIO.logInfo(s"Total symbols = [${symbols.size}] tradable = [${symbols.count(_.is_tradable)}]")
 
     adviceIntervals <- db.getAdviceIntervals
@@ -138,7 +142,10 @@ object TradeBot extends ZIOAppDefault {
         ReglamentService.live,
         AdvisorService.live,
         DictChanges.live,
-        FuturesMetricsScheduler.live
+        FuturesMetricsScheduler.live,
+        LlmClient.live,
+        LlmAdviceScheduler.live,
+        Client.default
       )
       .catchSome {
         case err if err == UnknownDbException => ZIO.logError(s"Failed : ${err.getMessage}").unit

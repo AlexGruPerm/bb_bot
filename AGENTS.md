@@ -34,6 +34,10 @@
 - Формат применяется автоматически при компиляции (maxColumn = 120).
 - Комментарии к сложным участкам ZIO-пайплайнов обязательны.
 
+## Скиллы
+- При работе с SQL/Postgres (запросы, ревью, оптимизация, EXPLAIN, индексы, миграции):
+  используй скиллы postgres-pro, postgresql-optimization, postgresql-code-review.
+
 ## Команды
 - Компиляция: sbt compile
 - Тесты модуля: sbt -batch "db/test"

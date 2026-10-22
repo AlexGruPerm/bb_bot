@@ -7,6 +7,7 @@ import service.{
   CommunicationService,
   DatabaseService,
   FuturesMetricsScheduler,
+  LlmAdviceScheduler,
   ReglamentService,
   TelegramService,
   TraderService,
@@ -14,6 +15,7 @@ import service.{
 }
 import services.{ CoinService, SymbolsService }
 import zio.ZIO
+import zio.http.Client
 
 import java.sql.SQLException
 import javax.sql.DataSource
@@ -23,6 +25,7 @@ package object app {
 
   type TraderAppEnvs = AppConfig
     with DataSource
+    with Client
     with DatabaseService
     with ByBitService
     with TraderService
@@ -36,6 +39,7 @@ package object app {
     with UsersService
     with DictChanges
     with FuturesMetricsScheduler
+    with LlmAdviceScheduler
 
   type ZioDBsSQLExc     = ZIO[DatabaseService with DataSource, SQLException, Unit]
   type ZioDBsReglSQLExc = ZIO[DatabaseService with ReglamentService with DataSource, SQLException, Unit]

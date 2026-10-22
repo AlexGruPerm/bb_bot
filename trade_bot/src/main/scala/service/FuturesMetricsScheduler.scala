@@ -28,7 +28,7 @@ final class FuturesMetricsSchedulerLive(db: DatabaseService, dc: DictChanges) ex
     _       <- ZIO.foreachDiscard(metrics) { m =>
       ZIO.foreachDiscard(metas.filter(_.idFuturesMetrics == m.id)) { mt =>
         ZIO.logInfo(
-          s"metric = ${m.metricName}  executeEveryMins = ${mt.executeEveryMins} filterWindowMin = ${mt.filterWindowMin}"
+          s"metric = ${m.metricName}  executeEveryMins = ${mt.executeEveryMins} filterWindowMin = ${mt.filterWindowMin} compareMins = ${mt.compareIntervalMin}"
         )
       }
     }

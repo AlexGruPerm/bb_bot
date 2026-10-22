@@ -1,10 +1,19 @@
 package telegram
 
 import bybit_model.{ DbUser, UsersInsert }
-import com.bot4s.telegram.api.declarative.Commands
+import com.bot4s.telegram.api.declarative.{ CommandFilterMagnet, Commands }
 import com.bot4s.telegram.methods.{ ParseMode, SendMessage }
 import com.bot4s.telegram.models.{ Message, User }
-import model.{ Ask, GetCommonBalance, GetSymbolsBalance, GetViewDeep, GetViewDeepInvalid, HelpFrom }
+import model.{
+  Ask,
+  GetCommonBalance,
+  GetLlmAdviceDescr,
+  GetLlmAdviceDescrInvalid,
+  GetSymbolsBalance,
+  GetViewDeep,
+  GetViewDeepInvalid,
+  HelpFrom
+}
 import service.{ DatabaseService, UsersService }
 import zio.{ Queue, Task, UIO, ZEnvironment, ZIO }
 
@@ -22,6 +31,8 @@ trait TelegramCommands {
 
   private val AccessDeniedMsg = "Доступ к боту запрещён. Обратитесь к администратору."
   private val AdminOnlyMsg    = "Данная команда доступна только администратору."
+
+  private val HoldDescrCmdRegex = """get_hold_descr_(\d+)""".r
 
   private def putToQueue(ask: Ask): UIO[Boolean] =
     getAskQueue.offer(ask)
@@ -149,6 +160,29 @@ trait TelegramCommands {
         processCommand(cmd = "/getViewDeep", requiresAdmin = false) {
           msg.from match {
             case Some(u) => putToQueue(GetViewDeepInvalid(args.mkString, u))
+            case None    => ZIO.unit
+          }
+        }
+    }
+  }
+
+  // Matches /get_hold_descr_<id> with the id embedded in the command token, e.g. "/get_hold_descr_127".
+  onCommand(CommandFilterMagnet { c =>
+    HoldDescrCmdRegex.findFirstMatchIn(c.cmd).isDefined
+  }) { implicit msg =>
+    val cmdToken = command(msg).map(_.cmd).getOrElse("")
+    HoldDescrCmdRegex.findFirstMatchIn(cmdToken).map(_.group(1)) match {
+      case Some(idStr) =>
+        processCommand(cmd = s"/get_hold_descr_$idStr", requiresAdmin = false) {
+          msg.from match {
+            case Some(u) => putToQueue(GetLlmAdviceDescr(idStr.toInt, u))
+            case None    => ZIO.unit
+          }
+        }
+      case None        =>
+        processCommand(cmd = "/get_hold_descr", requiresAdmin = false) {
+          msg.from match {
+            case Some(u) => putToQueue(GetLlmAdviceDescrInvalid(cmdToken, u))
             case None    => ZIO.unit
           }
         }

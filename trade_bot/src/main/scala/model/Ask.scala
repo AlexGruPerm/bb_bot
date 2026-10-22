@@ -31,3 +31,18 @@ final case class GetViewDeepInvalid(args: String, user: User) extends Ask {
 final case class SendAdminErrorLog(message: String) extends Ask {
   override def cmd: String = "/sendAdminErrorLog"
 }
+
+/** Broadcasts an LLM advice: buy/sell go out with the explanation, hold only as a short note. */
+final case class LlmFuturesMetricsAdvice(adviceId: Int, advice: String, adviceText: String) extends Ask {
+  override def cmd: String = "/llm_fut_metr_advice"
+}
+
+/** Returns the explanation (advice_text) of a stored LLM advice by its id, requested by a user. */
+final case class GetLlmAdviceDescr(adviceId: Int, user: User) extends Ask {
+  override def cmd: String = s"/get_hold_descr $adviceId"
+}
+
+/** Invalid /get_hold_descr invocation (bad or missing argument). */
+final case class GetLlmAdviceDescrInvalid(args: String, user: User) extends Ask {
+  override def cmd: String = s"/get_hold_descr $args"
+}

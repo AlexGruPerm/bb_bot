@@ -18,12 +18,16 @@ import bybit_model.{
   FuturesDataResult,
   FuturesDataRow,
   FuturesMetrics,
+  FuturesMetricsLlmRow,
   FuturesMetricsMeta,
   InsertedCandle,
   Interval,
   KLine,
   KLineInsert,
   KLineTopic,
+  LlmAdviceInsert,
+  LlmAdviceSourceResponseInsert,
+  LlmPrompt,
   LogLevel,
   OpenInterestInsert,
   OpenInterestResConverter,
@@ -695,6 +699,109 @@ final class PostgresqlService extends DatabaseService {
     }
     ctx.run(q).tapError(e => ZIO.logError(s"Futures metrics SQL error: ${e.getMessage}"))
   }
+
+  private val llmPromptsSchema = quote {
+    querySchema[LlmPrompt](
+      "data.llm_prompts_futures_metrics",
+      _.idFuturesMetricsMeta -> "id_futures_metrics_meta",
+      _.promptEn             -> "prompt_en",
+      _.promptRu             -> "prompt_ru",
+      _.promptLang           -> "prompt_lang",
+      _.isEnabled            -> "is_enabled",
+      _.executeEveryMins     -> "execute_every_mins"
+    )
+  }
+
+  private val llmAdviceSchema = quote {
+    querySchema[LlmAdviceInsert](
+      "data.llm_advice",
+      _.id            -> "id",
+      _.llmPromptFmId -> "llm_prompt_fm_id",
+      _.advice        -> "advice",
+      _.adviceText    -> "advice_text",
+      _.isSentToUser  -> "is_sent_to_user"
+    )
+  }
+
+  private val llmAdviceSourceResponseSchema = quote {
+    querySchema[LlmAdviceSourceResponseInsert](
+      "data.llm_advice_source_response",
+      _.llmAdviceId -> "llm_advice_id",
+      _.llmRequest  -> "llm_request",
+      _.llmResponse -> "llm_response"
+    )
+  }
+
+  override def getLlmPrompts: ZIO[DataSource, SQLException, List[LlmPrompt]] =
+    run(llmPromptsSchema)
+
+  /**
+   * Ranked snapshot of data.futures_data_price_oi_metrics for the given meta: the last 90 distinct timestamps, newest
+   * first, joined with data.futures_metrics_groups to decode the price/oi direction into grp_code.
+   */
+  override def getFuturesMetricsLlmSnapshot(metaId: Int): ZIO[DataSource, SQLException, List[FuturesMetricsLlmRow]] = {
+    val sqlStr =
+      s"""
+         |with ranked as (
+         |  select
+         |    dense_rank() over (order by date_trunc('second', d.ts_db) desc) as rn,
+         |    d.*
+         |  from data.futures_data_price_oi_metrics d
+         |  where d.id_futures_metrics_meta = $metaId
+         |)
+         |select r.ts_db,
+         |       r.rn,
+         |       r.id_futures_metrics_groups,
+         |       g.grp_code,
+         |       r.cnt,
+         |       r.pct_of_analyzed_by_count,
+         |       r.total_oi_usdt,
+         |       r.prcnt_oi
+         |from ranked r
+         |join data.futures_metrics_groups g on g.id = r.id_futures_metrics_groups
+         |where r.rn <= 90
+         |order by r.rn asc, r.ts_db desc""".stripMargin
+    val q      = quote {
+      sql"#$sqlStr".as[Query[FuturesMetricsLlmRow]]
+    }
+    ctx.run(q)
+  }
+
+  override def insertLlmAdvice(
+    promptId: Int,
+    advice: String,
+    adviceText: String
+  ): ZIO[DataSource, SQLException, Int] =
+    run(
+      llmAdviceSchema
+        .insertValue(lift(LlmAdviceInsert(0, promptId, advice, adviceText, isSentToUser = false)))
+        .returningGenerated(_.id)
+    )
+
+  override def insertLlmAdviceSourceResponse(
+    llmAdviceId: Option[Int],
+    request: String,
+    response: String
+  ): ZIO[DataSource, SQLException, Unit] =
+    run(
+      llmAdviceSourceResponseSchema.insertValue(
+        lift(LlmAdviceSourceResponseInsert(llmAdviceId, request, response))
+      )
+    ).unit
+
+  override def markLlmAdviceSent(id: Int): ZIO[DataSource, SQLException, Unit] =
+    run(
+      llmAdviceSchema
+        .filter(_.id == lift(id))
+        .update(_.isSentToUser -> true)
+    ).unit
+
+  override def getLlmAdviceText(id: Int): ZIO[DataSource, SQLException, Option[String]] =
+    run(
+      llmAdviceSchema
+        .filter(_.id == lift(id))
+        .map(_.adviceText)
+    ).map(_.headOption)
 
   /// Shared CTE for both metrics queries: latest data point per symbol + previous point for comparison.
   private def metricsCommonCte(

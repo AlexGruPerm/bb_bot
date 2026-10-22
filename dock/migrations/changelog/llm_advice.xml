@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.llm_advice.xml">
+
+    <changeSet id="2026-10-12-1-create-llm-prompts-futures-metrics" author="yakushev">
+        <sql>
+            create table data.llm_prompts_futures_metrics(
+              id                      serial4   not null,
+              id_futures_metrics_meta int4 not null constraint fk_llm_prompts_fut_mm references data.futures_metrics_meta(id),
+              prompt_en               text,
+              prompt_ru               text,
+              prompt_lang             varchar(3) not null,
+              is_enabled              boolean default true,
+              execute_every_mins      int     not null,
+              constraint llm_req_prompt_futures_metrics_pkey primary key (id),
+              constraint ch_prompt_lang check (prompt_lang in ('rus','eng'))
+            );
+        </sql>
+        <comment>Create LLM prompts for futures metrics</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-12-2-create-llm-advice" author="yakushev">
+        <sql>
+            create table data.llm_advice (
+              id                serial4   not null,
+              llm_prompt_fm_id  int4      not null constraint fk_llm_advice_llm_prompt_fm references data.llm_prompts_futures_metrics(id),
+              ts_db             timestamp default localtimestamp not null,
+              advice            text      not null,
+              advice_text       text      not null,
+              is_sent_to_user   bool      default false not null,
+              constraint llm_advice_pkey primary key (id),
+              constraint ch_llm_advice_str check ((advice = any (array['buy'::text, 'sell'::text, 'hold'::text])))
+            );
+            create index idx_llm_advice_not_sent on data.llm_advice using btree (is_sent_to_user, id) where (is_sent_to_user = false);
+        </sql>
+        <comment>Create LLM advice</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-12-3-create-llm-advice-source-response" author="yakushev">
+        <sql>
+            create table data.llm_advice_source_response (
+              llm_advice_id int4 null constraint llm_advice_response_llm_advice references data.llm_advice(id) on delete cascade,
+              ts_db         timestamp default localtimestamp not null,
+              llm_request   text,
+              llm_response  text
+            );
+            create index idx_llm_advice_source_response_advice on data.llm_advice_source_response(llm_advice_id);
+        </sql>
+        <comment>Create raw LLM request/response log (llm_advice_id null means error or unparsable response)</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-12-4-seed-llm-prompt-futures-metrics" author="yakushev">
+        <sql splitStatements="false">
+        <![CDATA[
+            insert into data.llm_prompts_futures_metrics(id_futures_metrics_meta,prompt_ru,prompt_lang,execute_every_mins)
+                                      values(1,'
+У меня есть все данные по всем фьючерсам ByBit (всего их примерно 933): цена и открытый интерес (ОИ).
+Я получаю данные по ним каждую минуту. Каждые 5 минут я выполняю анализ и сохраняю результаты в таблицу.
+Суть анализа:
+1) Берутся данные по всем фьючерсам за последний момент времени.
+2) Считается суммарный ОИ по ним всем - total_oi.
+3) Далее из всех фьючерсов шага 1 я оставляю те, у которых ОИ >= total_oi * 0.005 , их остется примерно 20-30 штук. И считает объем каждого из оставленных к общему объему total_oi. Если их просуммировать, то получится 70-80%. Т.е. я выбираю самые тяжелые.
+4) Далее я для каждого из фьючерсов шага 3, выбираю их же, но 60 минут назад и беру по ним цену и ОИ.
+5) Далее я сравниваю состояние (цена и ОИ) из шага 3 (на текущий момент времени) и из шага 4(60 минут назад).
+   Я считаю процентное изменение цены сейчас к прошлому значению и процентное изменение ОИ сейчас по отношению к прошлому для каждого фьючерса (напоминаю, что их на шаге 3 примерно 20-30 штук.)
+6) Далее я ранжирую процентное изменение цены и ОИ из шага 5. Если процентное изменение > 0.001 то группа "up", если < -0.001 то группа "down" иначе группа "flat".
+   На этом шаге я получаю для каждого фьючерса price_dir = одной из 3 групп и oi_dir = одной из 3 групп
+7) Далее я группируюэлементы из шага 6. По алгоритму
+   case
+    when price_dir = down and oi_dir = down then 1
+    when price_dir = down and oi_dir = up   then 2
+    when price_dir = up   and oi_dir = down then 3
+    when price_dir = up   and oi_dir = up   then 4
+    else 5
+  end as id_futures_metrics_groups
+   считаю количество элементов в этой группе cnt и суммарный ОИ для данной группы total_oi_usdt.
+8) Далее я делаю агрегацию и для каждой группы на шаге 7 и имею:
+   ts_db                     - дата время сохранения аналитического слепка
+   id_futures_metrics_groups - ид группы, характеризующее изменение цены и изменеие ОИ.
+   cnt                       - количество элементов в этой группе.
+   pct_of_analyzed_by_count  - % элементов в группе относительно общего числа элементов шага 7. (сумма % дает 100)
+   total_oi_usdt             - суммарный ОИ данной группы
+   prcnt_oi                  - % ОИ от суммарного ОИ шага 7. (сумма % дает 100)
+9) Тем самым мы видим общую картину по самым "тяжелым" фьючерсам, как общую характеристику всего рынка.
+   Например если на шаге 8
+    9.1)     больше 80% всех фьючерсов относятся к группе 4 (цена растет и ОИ растет), то это косвенный сигнал, что можно покупать (buy).
+    9.2) или больше 80% всех фьючерсов относятся к группе 3 (цена растет и ОИ падает), то это признак, что можно рассмотреть продажи, тренд заканчивается (sell).
+10) Я даю тебе не просто слепок за последний момент времени, а N последних слепков (т.к. анализ запускается каждые 5 минут, то это общий интервал N*5 минут) (они пронумерованы RN, RN=1 самый последний), чтобы ты мог посмотреть динамику изменения
+    pct_of_analyzed_by_count и prcnt_oi по группам, за интервал в N снимков.
+    Свежие снимки имеют больший вес, а картину надо смотреть в общем  с учётом всего интервала. Прогноз ты даешь на короткий интервал, примерно 1 час - это важно. Не нужно оценивать на больший интервал.
+В пояснении, если используешь группа X, то в скобках указывай что это за группу (up/down/flat, up/down/flat) первый элемент относится к цене (не надо писать price), второй к ОИ. Пример (up,down)',
+'rus',15);
+        ]]>
+        </sql>
+        <comment>Seed default Russian prompt for futures metrics</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-12-5-trigger-llm-prompts-futures-metrics-notify" author="yakushev">
+        <sql>
+            create trigger trg_dict_changed_llm_prompts_futures_metrics
+            after insert or update or delete on data.llm_prompts_futures_metrics
+            for each statement execute function data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on llm_prompts_futures_metrics changes</comment>
+    </changeSet>
+
+</databaseChangeLog>

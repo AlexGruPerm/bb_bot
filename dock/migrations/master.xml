@@ -55,4 +55,5 @@ http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.8.xsd">
     <include file="changelog/common_log_change.xml" relativeToChangelogFile="true" />
     <include file="changelog/futures_metrics.xml" relativeToChangelogFile="true" />
     <include file="changelog/reglament_meta_ts_column_default.xml" relativeToChangelogFile="true" />
+    <include file="changelog/llm_advice.xml" relativeToChangelogFile="true" />
 </databaseChangeLog>
