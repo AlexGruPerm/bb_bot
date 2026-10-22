@@ -5,7 +5,7 @@ name := "bb_bot_project"
 
 ThisBuild / organization := "yakushev"
 ThisBuild / version      := "0.0.1"
-ThisBuild / scalaVersion := "2.13.16"
+ThisBuild / scalaVersion := "2.13.18"
 
 lazy val common = (project in file("common"))
   .settings(
@@ -56,7 +56,6 @@ lazy val gather = (project in file("gather"))
 lazy val global = project
   .in(file("."))
   .enablePlugins(AssemblyPlugin)
-  .enablePlugins(ScapegoatSbtPlugin)
   .settings(Settings.commonSettings, commonAssemblySettings)
   .aggregate(
     gather,
@@ -70,6 +69,7 @@ lazy val commonAssemblySettings = Seq(
   assembly / assemblyMergeStrategy := {
     // Netty versions.properties — берём первый
     case PathList("META-INF", "io.netty.versions.properties")     => MergeStrategy.first
+    case PathList("META-INF", "native", _ @ _*)                   => MergeStrategy.first
     case PathList("META-INF/versions/11/", "module-info.class")   => MergeStrategy.first
     case "deriving.conf" => MergeStrategy.first
 

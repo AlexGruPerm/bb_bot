@@ -11,7 +11,8 @@ case class DbUser(
   username: Option[String],
   is_admin: Boolean,
   ts_db_begin: Timestamp,
-  ts_db_end: Option[Timestamp]
+  ts_db_end: Option[Timestamp],
+  reason: Option[String]
 ) {
   def isActive(now: Timestamp): Boolean =
     !now.before(ts_db_begin) && ts_db_end.forall(end => !now.after(end))

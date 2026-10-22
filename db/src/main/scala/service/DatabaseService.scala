@@ -84,8 +84,11 @@ trait DatabaseService {
   def getAndSaveAdvice(sap: SymbolsAdviceProc): ZIO[DataSource, SQLException, List[AdviceId]]
   def getAllAdvice(): ZIO[DataSource, SQLException, List[AdviceToUser]]
   def getViewDeep(interval: String, deep_bars: Int): ZIO[DataSource, SQLException, List[ViewDeepLine]]
+
+  /** Active users only: rows with `ts_db_end` set are deactivated and excluded. */
   def getUsers: ZIO[DataSource, SQLException, List[DbUser]]
   def upsertUser(user: UsersInsert): ZIO[DataSource, SQLException, Unit]
+  def deactivateUser(tgUserId: Long, reason: String): ZIO[DataSource, SQLException, Unit]
   def saveTgCommandLog(idUser: Int, command: String): ZIO[DataSource, SQLException, Unit]
   def getLlmAdviceText(id: Int): ZIO[DataSource, SQLException, Option[String]]
 }

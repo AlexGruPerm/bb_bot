@@ -1388,8 +1388,10 @@ final class PostgresqlService extends DatabaseService {
     ctx.run(query)
   }
 
+  // Only users whose session is still open (ts_db_end is null) are returned: deactivated users must never be
+  // loaded into the in-memory cache nor counted in refresh logs.
   override def getUsers: ZIO[DataSource, SQLException, List[DbUser]] =
-    run(usersSchema)
+    run(usersSchema.filter(u => u.ts_db_end.isEmpty))
 
   override def upsertUser(user: UsersInsert): ZIO[DataSource, SQLException, Unit] =
     run(
@@ -1407,6 +1409,15 @@ final class PostgresqlService extends DatabaseService {
           (t, e) => t.can_read_all_group_messages -> e.can_read_all_group_messages,
           (t, e) => t.supports_inline_queries     -> e.supports_inline_queries
         )
+    ).unit
+
+  // Closes the user's session (ts_db_end) and records why, so the bot stops sending to an unreachable chat.
+  override def deactivateUser(tgUserId: Long, reason: String): ZIO[DataSource, SQLException, Unit] =
+    run(
+      sql"""update data.users
+            set    ts_db_end = LOCALTIMESTAMP,
+                   reason    = ${lift(reason)}
+            where  user_id   = ${lift(tgUserId)}""".as[Delete[Any]]
     ).unit
 
   override def saveTgCommandLog(idUser: Int, command: String): ZIO[DataSource, SQLException, Unit] =

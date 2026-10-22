@@ -10,7 +10,7 @@ object Settings {
 
   val commonSettings =
     Seq(
-      scalaVersion := "2.13.16",
+      scalaVersion := "2.13.18",
       scalacOptions := Seq(
         "-Ymacro-annotations",
         "-deprecation",
@@ -48,6 +48,6 @@ object Settings {
   val dbTestDependencies: immutable.Seq[ModuleID] =
     List(zio_test, zio_test_sbt, pg, testcontainers_postgresql, liquibase_core)
   val bot4sDependencies: immutable.Seq[ModuleID]  =
-    List(bot4s_core, bot4s_akka, ZioIoCats, zio_sttp, sttp_client_backend_zio, catsEffect)
+    List(bot4s_core, bot4s_pekko, ZioIoCats, zio_sttp, sttp_client_backend_zio, catsEffect)
 
 }

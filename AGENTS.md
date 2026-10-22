@@ -21,6 +21,7 @@
 ## Конвенции
 - Максимальнь чистый функциональный код с учётом испольования ZIO
 - Liquibase-ченджсеты в YAML, changeset-id: YYYY-MM-DD-N-название
+- Новые Liquibase-ченджсеты добавляются в конец master.xml
 - Все ZIO-эффекты через ZIO.succeed / ZIO.fail
 - Логирование через ZIO Logging
 - Имена таблиц в snake_case, классы в CamelCase

@@ -11,10 +11,28 @@ import zio.{ Task, UIO, ZIO }
 import java.time.format.DateTimeFormatter
 import scala.math.BigDecimal.double2bigDecimal
 
+object TelegramMethods {
+
+  /** Stored in data.users.reason when Telegram reports that the user blocked the bot. */
+  val BlockedByUserReason: String = "bot was blocked by the user"
+}
+
 trait TelegramMethods {
   self: TelegramBot[Task] =>
 
+  import TelegramMethods.BlockedByUserReason
+
   def usersService: UsersService
+
+  /** Implemented by [[service.TelegramService]]: marks the user inactive in `data.users` and refreshes the cache. */
+  def deactivateBlockedUser(tgUserId: Long): Task[Unit]
+
+  /**
+   * Telegram returns "Forbidden: bot was blocked by the user" when the recipient deleted/blocked the bot. The message
+   * does not carry the chat id, so the id comes from the failed request in [[sendToTelegramUsers]].
+   */
+  private def isBlockedByUser(err: Throwable): Boolean =
+    Option(err.getMessage).exists(_.toLowerCase.contains(BlockedByUserReason))
 
   private val double2str: Double => String = d => d.setScale(2, BigDecimal.RoundingMode.HALF_UP).toString()
 
@@ -145,10 +163,16 @@ trait TelegramMethods {
   private def sendToTelegramUsers(userIds: List[Long], msg: String): Task[Unit] =
     ZIO
       .foreach(userIds) { userId =>
-        request(SendMessage(userId, msg, Some(ParseMode.HTML)))
+        request(SendMessage(userId, msg, Some(ParseMode.HTML))).catchAll { e: Throwable =>
+          if (isBlockedByUser(e)) {
+            // The user blocked the bot: remember it in data.users and keep sending to the rest.
+            ZIO.logWarning(s"User tgId=$userId blocked the bot, deactivating and skipping") *>
+              deactivateBlockedUser(userId).ignore
+          } else ZIO.fail(e)
+        }
       }
       .tapError { e: Throwable =>
-        ZIO.logError(s"${e.getMessage} - ${e.getMessage}")
+        ZIO.logError(s"Failed to send telegram message: ${e.getMessage}")
       }
       .unit
 

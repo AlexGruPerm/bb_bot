@@ -179,6 +179,27 @@ object DatabaseServiceSpec extends ZIOSpecDefault {
             )
           } yield assertTrue(count == 1L)).ensuring(cleanup)
         }
+      ),
+      suite("users deactivation")(
+        test("deactivateUser sets ts_db_end and reason for the telegram id") {
+          val userId  = sampleUser.user_id
+          val reason  = "bot was blocked by the user"
+          val cleanup = SqlSupport.cleanup(s"delete from data.users where user_id = $userId")
+          (for {
+            _     <- cleanup
+            _     <- SqlSupport.execute(
+              s"insert into data.users(user_id, first_name) values ($userId, 'Blocked')"
+            )
+            _     <- db.flatMap(_.deactivateUser(userId, reason))
+            count <- SqlSupport.queryLong(
+              s"""select count(*) from data.users
+                 | where user_id = $userId
+                 |   and ts_db_end is not null
+                 |   and reason = '$reason'""".stripMargin
+            )
+            users <- db.flatMap(_.getUsers)
+          } yield assertTrue(count == 1L, !users.exists(_.user_id == userId))).ensuring(cleanup)
+        }
       )
     ).provideShared(DbTestFixtures.databaseService) @@ TestAspect.sequential @@ TestAspect.withLiveClock
 

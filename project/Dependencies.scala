@@ -21,12 +21,12 @@ object Dependencies {
   val hikaricp = "com.zaxxer" % "HikariCP" % Version.hikari
 
   val bot4s_core = "com.bot4s" %% "telegram-core" %  Version.bot4s
-  val bot4s_akka = "com.bot4s" %% "telegram-akka" %  Version.bot4s
+  val bot4s_pekko = "com.bot4s" %% "telegram-pekko" %  Version.bot4s
 
   val ZioIoCats = "dev.zio" %% "zio-interop-cats" % Version.zioInteropCats
 
-  val zio_sttp                = "com.softwaremill.sttp.client3" %% "zio" % Version.sttp
-  val sttp_client_backend_zio = "com.softwaremill.sttp.client3" %% "async-http-client-backend-zio" % Version.sttp
+  val zio_sttp                = "com.softwaremill.sttp.client4" %% "zio" % Version.sttp
+  val sttp_client_backend_zio = "com.softwaremill.sttp.client4" %% "armeria-backend-zio" % Version.sttp
 
   val catsEffect              = "org.typelevel" %% "cats-effect" %  Version.ce
 }
@@ -42,8 +42,8 @@ object Version {
   val quill_version  = "4.8.5"
   val pg             = "42.7.8"
   val hikari         = "7.0.2"
-  val bot4s          = "6.0.0"
-  val sttp           = "3.11.0"
+  val bot4s          = "7.1.0"
+  val sttp           = "4.0.27"
   val zioInteropCats = "23.1.0.5"
   val ce             = "3.5.4" // try 3.7.1
   val testcontainers = "0.41.8"

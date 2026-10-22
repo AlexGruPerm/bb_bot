@@ -1,7 +1,7 @@
 package service
 
 import bybit_model.UsersInsert
-import conf.{ AppConfig, ByBitConfig, DbConfig, TelegramConfig }
+import conf.{ AiConfig, AppConfig, ByBitConfig, DbConfig, TelegramConfig }
 import testsupport.{ DbTestFixtures, SqlSupport }
 import zio.test.Assertion._
 import zio.test._
@@ -81,6 +81,13 @@ object UsersServiceSpec extends ZIOSpecDefault {
       pubcertpath = "/tmp/pub.pem",
       p12certpath = "/tmp/cert.p12",
       usersRefreshMins = 1
+    ),
+    ai = AiConfig(
+      url = "http://localhost/v1/chat/completions",
+      model = "test-model",
+      temperature = 0.2,
+      max_tokens = 300,
+      token = "test"
     )
   )
 
@@ -158,6 +165,43 @@ object UsersServiceSpec extends ZIOSpecDefault {
           admins.exists(_.user_id == userA.user_id),
           !admins.exists(_.user_id == userB.user_id)
         )
+        program.ensuring(cleanup)
+      },
+      test("getUsers excludes users whose ts_db_end is set") {
+        val seed    = SqlSupport.execute(
+          s"""insert into data.users(user_id, first_name, username, is_admin, ts_db_end)
+             | values
+             |  (${userA.user_id}, 'Alice', 'alice', false, null),
+             |  (${userB.user_id}, 'Bob', 'bob', false, LOCALTIMESTAMP)
+             | on conflict (user_id) do update set ts_db_end = excluded.ts_db_end""".stripMargin
+        )
+        val program = for {
+          _     <- cleanup
+          _     <- seed
+          users <- withUsers(_.getUsers)
+        } yield assertTrue(
+          users.exists(_.user_id == userA.user_id),
+          !users.exists(_.user_id == userB.user_id)
+        )
+        program.ensuring(cleanup)
+      },
+      test("refreshUsers drops users deactivated after startup") {
+        val seed    = SqlSupport.execute(
+          s"""insert into data.users(user_id, first_name) values (${userA.user_id}, 'Alice')
+             | on conflict (user_id) do update set ts_db_end = null""".stripMargin
+        )
+        val program = withUsers { users =>
+          for {
+            _      <- cleanup *> seed
+            _      <- users.refreshUsers
+            before <- users.findUser(userA.user_id)
+            _      <- SqlSupport.execute(
+              s"update data.users set ts_db_end = LOCALTIMESTAMP where user_id = ${userA.user_id}"
+            )
+            _      <- users.refreshUsers
+            after  <- users.findUser(userA.user_id)
+          } yield assertTrue(before.isDefined, after.isEmpty)
+        }
         program.ensuring(cleanup)
       },
       test("refreshUsers picks up users inserted after startup") {
