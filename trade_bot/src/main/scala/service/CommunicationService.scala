@@ -37,7 +37,7 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
   private def handler(ask: Ask): ZIO[DataSource, Throwable, Unit] = for {
     _ <- ZIO.logDebug(s"Handling ask: ${ask.cmd}")
     _ <- ask match {
-      case GetCommonBalance(user)                                                      =>
+      case GetCommonBalance(user)                                                                =>
         withMaxWalletBalanceId(err =>
           tg.sendErrorMessage(GetCommonBalance(user), s"Error receiving balance: ${err.getMessage}", user)
         ) { id =>
@@ -48,7 +48,7 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
             )
             .unit
         }
-      case GetSymbolsBalance(user)                                                     =>
+      case GetSymbolsBalance(user)                                                               =>
         withMaxWalletBalanceId(err =>
           tg.sendErrorMessage(GetSymbolsBalance(user), s"Error receiving balance: ${err.getMessage}", user)
         ) { id =>
@@ -59,8 +59,8 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
             )
             .unit
         }
-      case HelpFrom(user)                                                              => tg.sendHelp(user)
-      case GetViewDeep(interval, deep_bars, user)                                      =>
+      case HelpFrom(user)                                                                        => tg.sendHelp(user)
+      case GetViewDeep(interval, deep_bars, user)                                                =>
         db.getViewDeep(interval, deep_bars)
           .foldZIO(
             err =>
@@ -71,16 +71,16 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
               ),
             vd_data => tg.sendViewDeep(interval, deep_bars, vd_data, user)
           )
-      case GetViewDeepInvalid(args, user)                                              =>
+      case GetViewDeepInvalid(args, user)                                                        =>
         tg.sendErrorMessage(
           GetViewDeepInvalid(args, user),
           s"Invalid parameters [$args] Try /getViewDeep 15 10 (where 15 - interval, 10 - deep bars)",
           user
         )
-      case SendAdminErrorLog(message)                                                  => tg.sendAdminErrorMessage(message)
-      case LlmFuturesMetricsAdvice(promptId, compIntMin, everyMin, advice, adviceText) =>
-        tg.sendLlmFuturesMetricsAdvice(promptId, compIntMin, everyMin, advice, adviceText)
-      case GetLlmAdviceDescr(adviceId, user)                                           =>
+      case SendAdminErrorLog(message)                                                            => tg.sendAdminErrorMessage(message)
+      case LlmFuturesMetricsAdvice(adviceId, promptId, compIntMin, everyMin, advice, adviceText) =>
+        tg.sendLlmFuturesMetricsAdvice(adviceId, promptId, compIntMin, everyMin, advice, adviceText)
+      case GetLlmAdviceDescr(adviceId, user)                                                     =>
         db.getLlmAdviceText(adviceId)
           .foldZIO(
             err =>
@@ -94,14 +94,14 @@ final class CommunicationServiceLive(queue: Queue[Ask], tg: TelegramService, db:
               case None       => tg.sendErrorMessage(GetLlmAdviceDescr(adviceId, user), s"Advice #$adviceId not found", user)
             }
           )
-      case GetLlmAdviceDescrInvalid(args, user)                                        =>
+      case GetLlmAdviceDescrInvalid(args, user)                                                  =>
         tg.sendErrorMessage(
           GetLlmAdviceDescrInvalid(args, user),
           s"Invalid parameters [$args] Try /get_hold_descr_X (where X - advice id)",
           user
         )
       // ...
-      case _                                                                           => ZIO.logInfo("[ANY] ASK in QUEUE")
+      case _                                                                                     => ZIO.logInfo("[ANY] ASK in QUEUE")
     }
   } yield ()
 

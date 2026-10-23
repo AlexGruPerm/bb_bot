@@ -43,6 +43,7 @@ abstract class TelegramService(val conf: TelegramConfig)
   def sendAdminErrorMessage(message: String): Task[Unit]
   def sendLlmFuturesMetricsAdvice(
     adviceId: Int,
+    llmPromptFmId: Int,
     compareIntervalMin: Int,
     executeEveryMins: Int,
     advice: String,

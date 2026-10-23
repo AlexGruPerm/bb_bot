@@ -229,23 +229,29 @@ trait TelegramMethods {
    * while still being one tap away.
    */
   def sendLlmFuturesMetricsAdvice(
+    adviceId: Int,
     llmPromptFmId: Int,
     compareIntervalMin: Int,
     executeEveryMins: Int,
     advice: String,
     adviceText: String
   ): Task[Unit] = {
-    val header =
+    val header_hold =
       s"<tg-spoiler>[AdvID = $llmPromptFmId CompIntMin = $compareIntervalMin everyMin = $executeEveryMins]</tg-spoiler>"
+    val header_bs   =
+      s"[AdvID = $llmPromptFmId CompIntMin = $compareIntervalMin everyMin = $executeEveryMins]"
     if (advice.equalsIgnoreCase("hold"))
+      // The explanation is not broadcast for hold; the user pulls it on demand by clicking the link.
       sendToActiveUsers(
-        s"""$header
+        s"""$header_hold
            |
-           |<b>hold</b>""".stripMargin
+           |<b>hold</b>
+           |
+           |/get_hold_descr_$adviceId""".stripMargin
       )
     else
       sendToActiveUsers(
-        s"""$header
+        s"""$header_bs
            |
            |<b>${escapeHtml(advice)}</b>
            |

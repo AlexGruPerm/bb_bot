@@ -33,12 +33,13 @@ final case class SendAdminErrorLog(message: String) extends Ask {
 }
 
 /**
- * Broadcasts an LLM advice: buy/sell go out with the explanation, hold only as a short note. The header line carries
- * the advice id plus the meta parameters of the metrics snapshot it was built from (compare interval / execution
- * period).
+ * Broadcasts an LLM advice: buy/sell go out with the explanation, hold only as a short note plus a /get_hold_descr link
+ * (which needs the llm_advice row id). The header line carries the llm prompt id (data.llm_advice.llm_prompt_fm_id)
+ * plus the meta parameters of the metrics snapshot it was built from (compare interval / execution period).
  */
 final case class LlmFuturesMetricsAdvice(
   adviceId: Int,
+  llmPromptFmId: Int,
   compareIntervalMin: Int,
   executeEveryMins: Int,
   advice: String,

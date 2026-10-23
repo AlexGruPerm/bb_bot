@@ -130,6 +130,7 @@ final class LlmAdviceSchedulerLive(
             .askQ
             .offer(
               model.LlmFuturesMetricsAdvice(
+                id,
                 prompt.id,
                 meta.compareIntervalMin,
                 meta.executeEveryMins,
