@@ -20,6 +20,9 @@ import bybit_model.{
   FuturesMetrics,
   FuturesMetricsLlmRow,
   FuturesMetricsMeta,
+  FuturesPositionClosedInsert,
+  FuturesPositionInsert,
+  FuturesPositionsConfig,
   InsertedCandle,
   Interval,
   KLine,
@@ -806,6 +809,88 @@ final class PostgresqlService extends DatabaseService {
         .map(_.adviceText)
     ).map(_.headOption)
 
+  private val futuresPositionSchema = quote {
+    querySchema[FuturesPositionInsert](
+      "data.futures_position",
+      _.idSymbolFutures -> "id_symbol_futures",
+      _.avgPrice        -> "avg_price",
+      _.markPrice       -> "mark_price",
+      _.liqPrice        -> "liq_price",
+      _.positionValue   -> "position_value",
+      _.positionIdx     -> "position_idx",
+      _.unrealisedPnl   -> "unrealised_pnl",
+      _.curRealisedPnl  -> "cur_realised_pnl",
+      _.cumRealisedPnl  -> "cum_realised_pnl",
+      _.takeProfit      -> "take_profit",
+      _.stopLoss        -> "stop_loss"
+    )
+  }
+
+  private val futuresPositionClosedSchema = quote {
+    querySchema[FuturesPositionClosedInsert](
+      "data.futures_position_closed",
+      _.idSymbolFutures -> "id_symbol_futures",
+      _.orderId         -> "order_id",
+      _.orderPrice      -> "order_price",
+      _.orderType       -> "order_type",
+      _.execType        -> "exec_type",
+      _.closedSize      -> "closed_size",
+      _.cumEntryValue   -> "cum_entry_value",
+      _.avgEntryPrice   -> "avg_entry_price",
+      _.cumExitValue    -> "cum_exit_value",
+      _.avgExitPrice    -> "avg_exit_price",
+      _.closedPnl       -> "closed_pnl",
+      _.createdTime     -> "created_time",
+      _.updatedTime     -> "updated_time"
+    )
+  }
+
+  private val futuresPositionsConfigSchema = quote {
+    querySchema[FuturesPositionsConfig](
+      "data.futures_positions_config",
+      _.openPollSecs      -> "open_poll_secs",
+      _.closedPollSecs    -> "closed_poll_secs",
+      _.closedLookbackMin -> "closed_lookback_min",
+      _.isEnabled         -> "is_enabled"
+    )
+  }
+
+  override def getFuturesPositionsConfig: ZIO[DataSource, SQLException, Option[FuturesPositionsConfig]] =
+    run(futuresPositionsConfigSchema).map(_.headOption)
+
+  override def resolveSymbolFuturesId(code: String): ZIO[DataSource, SQLException, Int] =
+    for {
+      // A brand new Bybit symbol must be in the dictionary before futures_position can reference it.
+      _  <- run(symbolFutures.insert(_.code -> lift(code)).onConflictIgnore(_.code))
+      id <- run(symbolFutures.filter(_.code == lift(code)).map(_.id))
+    } yield id.head
+
+  override def saveFuturesPositions(positions: List[FuturesPositionInsert]): ZIO[DataSource, SQLException, Unit] =
+    ZIO
+      .when(positions.nonEmpty)(
+        run(
+          liftQuery(positions).foreach { row =>
+            futuresPositionSchema.insertValue(row)
+          }
+        ).unit
+      )
+      .unit
+
+  override def saveFuturesPositionsClosed(
+    items: List[FuturesPositionClosedInsert]
+  ): ZIO[DataSource, SQLException, Unit] =
+    ZIO
+      .when(items.nonEmpty)(
+        run(
+          liftQuery(items).foreach { row =>
+            futuresPositionClosedSchema
+              .insertValue(row)
+              .onConflictIgnore(_.idSymbolFutures, _.orderId, _.updatedTime)
+          }
+        ).unit
+      )
+      .unit
+
   /// Shared CTE for both metrics queries: latest data point per symbol + previous point for comparison.
   private def metricsCommonCte(
     windowMin: Int,
@@ -968,28 +1053,31 @@ final class PostgresqlService extends DatabaseService {
   override def saveWalletBalance(
     coins: Set[Coin],
     walletBalance: ApiRespWalletBalance
-  ): ZIO[DataSource, SQLException, Unit] = for {
-    walletBalanceId <- run(
-      WalletBalanceSchema
-        .insertValue(
-          lift(
-            walletBalance.result.balance.toWalletBalanceInsert(walletBalance.time)
+  ): ZIO[DataSource, SQLException, Unit] =
+    // Bybit sometimes returns an empty account list; there is nothing to store then, and it must not be an error.
+    walletBalance.result.balance match {
+      case None          =>
+        ZIO.logWarning("saveWalletBalance: Bybit returned an empty wallet balance list, nothing to save")
+      case Some(balance) =>
+        for {
+          walletBalanceId <- run(
+            WalletBalanceSchema
+              .insertValue(lift(balance.toWalletBalanceInsert(walletBalance.time.getOrElse(0L))))
+              .returningGenerated(_.id)
           )
-        )
-        .returningGenerated(_.id)
-    )
-    _               <- ZIO.logDebug(s"wallet_balance.id = $walletBalanceId")
-    // Save into data.wallet_balance_coin only for coins that exist in data.coin
-    // look saveWalletBalance in GraphQLService.scala
-    coinsForInsert   = walletBalance.result.balance.coin.filter(c => coins.exists(_.code == c.coin)).map { coinBalance =>
-      coinBalance.toWalletBalanceCoinInsert(
-        id_wallet_balance = walletBalanceId,
-        id_coin = coins.find(_.code == coinBalance.coin).map(_.id)
-      )
+          _               <- ZIO.logDebug(s"wallet_balance.id = $walletBalanceId")
+          // Save into data.wallet_balance_coin only for coins that exist in data.coin
+          // look saveWalletBalance in GraphQLService.scala
+          coinsForInsert   = balance.coin.filter(c => coins.exists(_.code == c.coin)).map { coinBalance =>
+            coinBalance.toWalletBalanceCoinInsert(
+              id_wallet_balance = walletBalanceId,
+              id_coin = coins.find(_.code == coinBalance.coin).map(_.id)
+            )
+          }
+          // batch insert
+          _               <- run(liftQuery(coinsForInsert).foreach(c => WalletBalanceCoinSchema.insertValue(c)))
+        } yield ()
     }
-    // batch insert
-    _               <- run(liftQuery(coinsForInsert).foreach(c => WalletBalanceCoinSchema.insertValue(c)))
-  } yield ()
 
   override def getCommonWalletBalance(maxWalletBalanceId: Long): ZIO[DataSource, SQLException, CommonWalletBalance] = {
     val q = quote {

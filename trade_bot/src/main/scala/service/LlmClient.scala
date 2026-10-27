@@ -6,12 +6,21 @@ import zio.json.{ DecoderOps, DeriveJsonDecoder, DeriveJsonEncoder, EncoderOps, 
 import zio.{ Scope, Task, ZIO, ZLayer }
 
 /**
+ * Result of one LLM call.
+ *
+ *   - `content` is the assistant message text (choices[0].message.content), used to parse the buy/sell/hold advice.
+ *   - `rawResponse` is the complete JSON body returned by the API, stored in
+ *     data.llm_advice_source_response.llm_response so consumed tokens (usage) can be analysed later.
+ */
+final case class LlmCompletion(content: String, rawResponse: String)
+
+/**
  * Thin client for a chat-completions style LLM API (DeepSeek). Builds the request from AiConfig, sends prompt + data as
- * a single user message and returns the raw assistant text. No retries: a failure is propagated to the caller which
- * logs it into data.llm_advice_source_response.
+ * a single user message and returns both the parsed assistant text and the full raw response JSON. No retries: a
+ * failure is propagated to the caller which logs it into data.llm_advice_source_response.
  */
 trait LlmClient {
-  def complete(userContent: String): ZIO[Scope with Client, Throwable, String]
+  def complete(userContent: String): ZIO[Scope with Client, Throwable, LlmCompletion]
 }
 
 object LlmClient {
@@ -51,7 +60,7 @@ object LlmClient {
     private def decodeUrl(url: String): Task[URL] =
       ZIO.fromEither(URL.decode(url)).orElseFail(new IllegalArgumentException(s"Invalid AI url: $url"))
 
-    override def complete(userContent: String): ZIO[Scope with Client, Throwable, String] = for {
+    override def complete(userContent: String): ZIO[Scope with Client, Throwable, LlmCompletion] = for {
       url     <- decodeUrl(cfg.url)
       reqBody  = ChatRequest(
         model = cfg.model,
@@ -75,7 +84,7 @@ object LlmClient {
       content <- ZIO
         .fromOption(parsed.choices.headOption.map(_.message.content))
         .orElseFail(new RuntimeException(s"LLM response has no choices; raw=$src"))
-    } yield content
+    } yield LlmCompletion(content, src)
   }
 
   val live: ZLayer[AppConfig, Nothing, LlmClient] =

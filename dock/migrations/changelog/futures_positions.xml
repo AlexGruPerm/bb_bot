@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.0.xsd"
+                   logicalFilePath="db.futures_positions.xml">
+
+    <changeSet id="2026-10-23-1-create-futures-position" author="yakushev">
+        <sql>
+            create table data.futures_position (
+              id                 bigserial   not null,
+              id_symbol_futures  int4        not null
+                constraint fk_fut_pos_symbol_futures references data.symbol_futures(id),
+              side               varchar(8)  not null,
+              size               numeric     null,
+              avg_price          numeric     null,
+              mark_price         numeric     null,
+              liq_price          numeric     null,
+              position_value     numeric     null,
+              leverage           numeric(10,2) null,
+              position_idx       int4        null,
+              unrealised_pnl     numeric     null,
+              cur_realised_pnl   numeric     null,
+              cum_realised_pnl   numeric     null,
+              take_profit        numeric     null,
+              stop_loss          numeric     null,
+              ts_db              timestamp default localtimestamp not null,
+              constraint futures_position_pkey primary key (id),
+              constraint ch_futures_position_side check (side in ('Buy', 'Sell'))
+            );
+            create index idx_futures_position_ts on data.futures_position (ts_db desc);
+            create index idx_futures_position_symbol_ts on data.futures_position (id_symbol_futures, ts_db desc);
+            comment on table data.futures_position is 'Append-only snapshots of open futures positions (one row per poll and position).';
+            comment on column data.futures_position.ts_db is 'When the snapshot was saved';
+        </sql>
+        <comment>Create append-only snapshots of open futures positions</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-23-2-create-futures-position-closed" author="yakushev">
+        <sql>
+            create table data.futures_position_closed (
+              id                 bigserial   not null,
+              id_symbol_futures  int4        not null
+                constraint fk_fut_pos_closed_symbol_futures references data.symbol_futures(id),
+              side               varchar(8)  not null,
+              order_id           varchar(64) null,
+              order_price        numeric     null,
+              order_type         varchar(32) null,
+              exec_type          varchar(32) null,
+              closed_size        numeric     null,
+              cum_entry_value    numeric     null,
+              avg_entry_price    numeric     null,
+              cum_exit_value     numeric     null,
+              avg_exit_price     numeric     null,
+              closed_pnl         numeric     null,
+              leverage           numeric(10,2) null,
+              created_time       int8        null,
+              updated_time       int8        null,
+              ts_db              timestamp default localtimestamp not null,
+              constraint futures_position_closed_pkey primary key (id),
+              constraint uk_futures_position_closed unique (id_symbol_futures, order_id, updated_time),
+              constraint ch_futures_position_closed_side check (side in ('Buy', 'Sell'))
+            );
+            create index idx_futures_position_closed_updated on data.futures_position_closed (updated_time desc);
+            comment on table data.futures_position_closed is 'Closed position records taken from Bybit /v5/position/closed-pnl, stored as returned.';
+            comment on column data.futures_position_closed.created_time is 'Bybit createdTime (epoch millis)';
+            comment on column data.futures_position_closed.updated_time is 'Bybit updatedTime (epoch millis)';
+            comment on column data.futures_position_closed.ts_db is 'When the record was saved';
+        </sql>
+        <comment>Create closed futures positions table</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-23-3-create-futures-positions-config" author="yakushev">
+        <sql>
+            create table data.futures_positions_config (
+              id                  int4        not null,
+              open_poll_secs      int4        not null,
+              closed_poll_secs    int4        not null,
+              closed_lookback_min int4        not null,
+              is_enabled          bool        default true not null,
+              constraint futures_positions_config_pkey primary key (id),
+              constraint ch_futures_positions_config_id check (id = 1),
+              constraint ch_futures_positions_config_open_poll check (open_poll_secs > 0),
+              constraint ch_futures_positions_config_closed_poll check (closed_poll_secs > 0),
+              constraint ch_futures_positions_config_lookback check (closed_lookback_min > 0)
+            );
+            comment on table data.futures_positions_config is 'Single-row online configuration of the futures positions collector.';
+            comment on column data.futures_positions_config.closed_lookback_min is 'How far back each closed-pnl poll looks, in minutes';
+        </sql>
+        <comment>Create futures positions collector configuration</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-23-4-seed-futures-positions-config" author="yakushev">
+        <sql>
+            insert into data.futures_positions_config(id, open_poll_secs, closed_poll_secs, closed_lookback_min, is_enabled)
+            values (1, 60, 60, 120, true);
+        </sql>
+        <comment>Seed the single futures positions config row</comment>
+    </changeSet>
+
+    <changeSet id="2026-10-23-5-trigger-futures-positions-config-notify" author="yakushev">
+        <sql>
+            create trigger trg_dict_changed_futures_positions_config
+            after insert or update or delete on data.futures_positions_config
+            for each statement execute function data.fn_dict_changed_notify();
+        </sql>
+        <comment>Notify on futures_positions_config changes</comment>
+    </changeSet>
+
+</databaseChangeLog>

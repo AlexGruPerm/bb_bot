@@ -1,7 +1,7 @@
 import bybit.{ ByBitService, KLineHandler }
 import conf.AppConfig
 import postgresql.DictChanges
-import service.{ DatabaseService, GatherService }
+import service.{ DatabaseService, GatherService, PositionsScheduler }
 import services.{ CoinService, LogLevelService, PingPongService, SymbolsService }
 import zio.http.Client
 import zio.{ Queue, Scope }
@@ -20,6 +20,7 @@ package object app {
       with PingPongService
       with LogLevelService
       with DictChanges
+      with PositionsScheduler
 
   type CommonGatherCoinEnv =
     GatherService with ByBitService with DataSource with CoinService with LogLevelService
@@ -37,5 +38,7 @@ package object app {
     GatherService with ByBitService with DataSource with SymbolsService
 
   type GatherDataSourceEnv = GatherService with DataSource
+
+  type CommonGatherPosEnv = GatherService with ByBitService with DataSource with LogLevelService
 
 }

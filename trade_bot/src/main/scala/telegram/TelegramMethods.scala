@@ -237,17 +237,13 @@ trait TelegramMethods {
     adviceText: String
   ): Task[Unit] = {
     val header_hold =
-      s"<tg-spoiler>[AdvID = $llmPromptFmId CompIntMin = $compareIntervalMin everyMin = $executeEveryMins]</tg-spoiler>"
+      s"<tg-spoiler>[adv_iD = $llmPromptFmId Comp_min = $compareIntervalMin Every_min = $executeEveryMins]</tg-spoiler>"
     val header_bs   =
       s"[AdvID = $llmPromptFmId CompIntMin = $compareIntervalMin everyMin = $executeEveryMins]"
     if (advice.equalsIgnoreCase("hold"))
       // The explanation is not broadcast for hold; the user pulls it on demand by clicking the link.
       sendToActiveUsers(
-        s"""$header_hold
-           |
-           |<b>hold</b>
-           |
-           |/get_hold_descr_$adviceId""".stripMargin
+        s"""/get_hold_descr_$adviceId""".stripMargin
       )
     else
       sendToActiveUsers(

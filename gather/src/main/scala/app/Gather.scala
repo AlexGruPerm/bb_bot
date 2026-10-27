@@ -7,7 +7,7 @@ import conf.AppConfig
 import conf.ConfigLayer.configLayer
 import conf.InputJsonConfig.getInputJsonFilePath
 import postgresql.{ DictChanges, DictEvent }
-import service.{ DatabaseService, Datasource, DictRefreshLog, GatherService }
+import service.{ DatabaseService, Datasource, DictRefreshLog, GatherService, PositionsScheduler }
 import services.{ CoinService, LogLevelService, PingPongService, SymbolsService }
 import zio._
 
@@ -105,6 +105,7 @@ object Gather extends ZIOAppDefault {
     _ <- Saver.saveOrderBooks(conf.bybitAccount.save_order_book_freq_mins)
     _ <- Saver.saveOpenInterests(conf.bybitAccount.save_oi_freq_mins)
     _ <- Saver.saveFuturesData(conf.bybitAccount.save_futures_data_freq_mins)
+    _ <- ZIO.service[PositionsScheduler].flatMap(_.start).fork
 
     _ <- runPingPongChecker(conf.bybitAccount.pp_check_freq_sec.seconds, conf.bybitAccount.pp_check_restart)
     _ <- checkRestartSaveBar.repeat(Schedule.spaced(conf.bybitAccount.check_restart_savebar_freq.seconds)).fork
@@ -127,7 +128,8 @@ object Gather extends ZIOAppDefault {
         CoinService.layer,
         PingPongService.layer,
         LogLevelService.layer,
-        DictChanges.live
+        DictChanges.live,
+        PositionsScheduler.live
       )
       .catchSome {
         case err if err == UnknownDbException => ZIO.logError(s"Failed : ${err.getMessage}").unit

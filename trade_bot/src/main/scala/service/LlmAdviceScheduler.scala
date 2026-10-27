@@ -86,7 +86,7 @@ final class LlmAdviceSchedulerLive(
         csv        = renderCsv(rows)
         request    = buildRequest(promptTxt, csv)
         response  <- llm.complete(request)
-        _         <- persist(prompt, meta, request, response)
+        _         <- persist(prompt, meta, request, response.content, response.rawResponse)
       } yield ()
     }
     effect.catchAll {
@@ -118,13 +118,14 @@ final class LlmAdviceSchedulerLive(
     prompt: LlmPrompt,
     meta: FuturesMetricsMeta,
     request: String,
-    response: String
+    response: String,
+    rawResponse: String
   ): ZIO[DataSource, Throwable, Unit] =
     parseAdvice(response) match {
       case Some((advice, adviceText)) =>
         for {
           id <- db.insertLlmAdvice(prompt.id, advice, adviceText)
-          _  <- db.insertLlmAdviceSourceResponse(Some(id), request, response)
+          _  <- db.insertLlmAdviceSourceResponse(Some(id), request, rawResponse)
           _  <- db.markLlmAdviceSent(id)
           _  <- ask
             .askQ
@@ -140,7 +141,7 @@ final class LlmAdviceSchedulerLive(
             )
         } yield ()
       case None                       =>
-        db.insertLlmAdviceSourceResponse(None, request, response)
+        db.insertLlmAdviceSourceResponse(None, request, rawResponse)
     }
 
   private def scheduled(prompt: LlmPrompt): ZIO[DataSource with Client, Nothing, Unit] =

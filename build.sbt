@@ -49,9 +49,10 @@ lazy val gather = (project in file("gather"))
     mainClass / run := Some("app.Gather"),
     name := "gather",
     Settings.commonSettings,
+    libraryDependencies ++= Settings.dbTestDependencies.map(_ % Test),
     commonAssemblySettings
   )
-  .dependsOn(db, bybit)
+  .dependsOn(db % "compile->compile;test->test", bybit)
 
 lazy val global = project
   .in(file("."))

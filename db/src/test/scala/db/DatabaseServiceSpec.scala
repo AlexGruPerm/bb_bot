@@ -1,6 +1,6 @@
 package db
 
-import bybit_model.UsersInsert
+import bybit_model.{ FuturesPositionClosedInsert, FuturesPositionInsert, UsersInsert }
 import service.DatabaseService
 import testsupport.{ DbTestFixtures, SqlSupport }
 import zio.test.Assertion._
@@ -178,6 +178,106 @@ object DatabaseServiceSpec extends ZIOSpecDefault {
               s"select count(*) from data.tg_command_log where id_user = $id and command = '$cmd'"
             )
           } yield assertTrue(count == 1L)).ensuring(cleanup)
+        }
+      ),
+      suite("futures positions config")(
+        test("getFuturesPositionsConfig returns the seeded single config row") {
+          for {
+            config <- db.flatMap(_.getFuturesPositionsConfig)
+          } yield assertTrue(
+            config.exists(_.id == 1),
+            config.exists(_.openPollSecs > 0),
+            config.exists(_.closedPollSecs > 0),
+            config.exists(_.closedLookbackMin > 0)
+          )
+        }
+      ),
+      suite("futures positions")(
+        test("resolveSymbolFuturesId inserts a new code and returns its id") {
+          val code    = "TESTPOSUSDT"
+          val cleanup = SqlSupport.cleanup(s"delete from data.symbol_futures where code = '$code'")
+          (for {
+            _    <- cleanup
+            id   <- db.flatMap(_.resolveSymbolFuturesId(code))
+            id2  <- db.flatMap(_.resolveSymbolFuturesId(code))
+            name <- SqlSupport.queryString(s"select code from data.symbol_futures where id = $id")
+          } yield assertTrue(id > 0, id == id2, name.contains(code))).ensuring(cleanup)
+        },
+        test("saveFuturesPositions appends one snapshot row per call") {
+          val code    = "TESTPOSUSDT"
+          val cleanup = SqlSupport.cleanup(
+            s"delete from data.futures_position where id_symbol_futures in " +
+              s"(select id from data.symbol_futures where code = '$code');" +
+              s" delete from data.symbol_futures where code = '$code'"
+          )
+          val row     = FuturesPositionInsert(
+            idSymbolFutures = 0,
+            side = "Buy",
+            size = Some(BigDecimal(1)),
+            avgPrice = Some(BigDecimal("100.5")),
+            markPrice = Some(BigDecimal("101")),
+            liqPrice = None,
+            positionValue = Some(BigDecimal("100.5")),
+            leverage = Some(BigDecimal(10)),
+            positionIdx = Some(0),
+            unrealisedPnl = Some(BigDecimal("0.5")),
+            curRealisedPnl = None,
+            cumRealisedPnl = Some(BigDecimal(0)),
+            takeProfit = None,
+            stopLoss = None
+          )
+          (for {
+            _    <- cleanup
+            id   <- db.flatMap(_.resolveSymbolFuturesId(code))
+            _    <- db.flatMap(_.saveFuturesPositions(List(row.copy(idSymbolFutures = id))))
+            _    <- db.flatMap(_.saveFuturesPositions(List(row.copy(idSymbolFutures = id))))
+            cnt  <- SqlSupport.queryLong(
+              s"select count(*) from data.futures_position where id_symbol_futures = $id"
+            )
+            side <- SqlSupport.queryString(
+              s"select side from data.futures_position where id_symbol_futures = $id limit 1"
+            )
+          } yield assertTrue(cnt == 2L, side.contains("Buy"))).ensuring(cleanup)
+        },
+        test("saveFuturesPositions does nothing for an empty list") {
+          assertZIO(db.flatMap(_.saveFuturesPositions(Nil)))(anything)
+        },
+        test("saveFuturesPositionsClosed ignores duplicates on (symbol, order_id, updated_time)") {
+          val code    = "TESTCPOSUSDT"
+          val cleanup = SqlSupport.cleanup(
+            s"delete from data.futures_position_closed where id_symbol_futures in " +
+              s"(select id from data.symbol_futures where code = '$code');" +
+              s" delete from data.symbol_futures where code = '$code'"
+          )
+          val row     = FuturesPositionClosedInsert(
+            idSymbolFutures = 0,
+            side = "Sell",
+            orderId = Some("test-order-1"),
+            orderPrice = Some(BigDecimal("200")),
+            orderType = Some("Market"),
+            execType = Some("Trade"),
+            closedSize = Some(BigDecimal(1)),
+            cumEntryValue = Some(BigDecimal("200")),
+            avgEntryPrice = Some(BigDecimal("200")),
+            cumExitValue = Some(BigDecimal("190")),
+            avgExitPrice = Some(BigDecimal("190")),
+            closedPnl = Some(BigDecimal(10)),
+            leverage = Some(BigDecimal(5)),
+            createdTime = Some(1700000000000L),
+            updatedTime = Some(1700000060000L)
+          )
+          (for {
+            _   <- cleanup
+            id  <- db.flatMap(_.resolveSymbolFuturesId(code))
+            _   <- db.flatMap(_.saveFuturesPositionsClosed(List(row.copy(idSymbolFutures = id))))
+            _   <- db.flatMap(_.saveFuturesPositionsClosed(List(row.copy(idSymbolFutures = id))))
+            cnt <- SqlSupport.queryLong(
+              s"select count(*) from data.futures_position_closed where id_symbol_futures = $id"
+            )
+            pnl <- SqlSupport.queryString(
+              s"select closed_pnl from data.futures_position_closed where id_symbol_futures = $id"
+            )
+          } yield assertTrue(cnt == 1L, pnl.exists(_.startsWith("10")))).ensuring(cleanup)
         }
       ),
       suite("users deactivation")(

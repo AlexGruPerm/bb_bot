@@ -1,14 +1,25 @@
 package service
 
-import app.{ ByBitDsCoins, ByBitDsSymbols, ByBitDsSymbolsPp }
+import app.{ ByBitDsCoins, ByBitDsSymbols, ByBitDsSymbolsPp, CommonGatherPosEnv }
 import bybit.{ ByBitService, KLineHandler }
 import bybit_model.Types.{ IntervalCode, IntervalId }
-import bybit_model.{ CurrentCandle, ErrorLog, IntervalCodeId, KLineTopic, RefSymbolsIntervals }
+import bybit_model.{
+  ClosedPnlItem,
+  CurrentCandle,
+  ErrorLog,
+  FuturesPositionClosedInsert,
+  FuturesPositionInsert,
+  IntervalCodeId,
+  KLineTopic,
+  PositionInfo,
+  RefSymbolsIntervals
+}
 import services.{ CoinService, PingPongService, SymbolsService, SymbolsServiceError }
 import zio.http.Client
-import zio.{ Ref, ZIO, ZLayer }
+import zio.{ Clock, Ref, ZIO, ZLayer }
 
 import java.sql.SQLException
+import java.util.concurrent.TimeUnit
 import javax.sql.DataSource
 
 trait GatherService {
@@ -19,7 +30,17 @@ trait GatherService {
   def saveWalletBalance(): ZIO[ByBitDsCoins, Throwable, Unit]
   def saveErrorInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit]
   def saveFuturesData(): ZIO[ByBitDsSymbols, Throwable, Unit]
-  // def savePositionInfo(): ZIO[ByBitService with DataSource with SymbolsService, Throwable, Unit]
+
+  /** Stores one append-only snapshot of all currently open linear positions (only rows with size > 0). */
+  def saveFuturesPositions(): ZIO[CommonGatherPosEnv, Throwable, Unit]
+
+  /**
+   * Stores closed positions of the last `lookbackMin` minutes as reported by Bybit.
+   *
+   * @param lookbackMin
+   *   how far back to query /v5/position/closed-pnl
+   */
+  def saveFuturesPositionsClosed(lookbackMin: Int): ZIO[CommonGatherPosEnv, Throwable, Unit]
 }
 
 final class GatherServiceLive(db: DatabaseService) extends GatherService {
@@ -103,7 +124,9 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
     bbService     <- ZIO.service[ByBitService]
     coins         <- ZIO.serviceWithZIO[CoinService](_.getCoins())
     walletBalance <- ZIO.scoped(bbService.getWalletBalance()).provide(client)
-    _             <- ZIO.foreachDiscard(walletBalance.result.balance.coin.filterNot(c => coins.exists(_.code == c.coin))) { c =>
+    _             <- ZIO.foreachDiscard(
+      walletBalance.result.balance.toList.flatMap(_.coin).filterNot(c => coins.exists(_.code == c.coin))
+    ) { c =>
       ZIO.logError(notFoundCoinMsg(c.coin)) *>
         saveErrorInDb(
           ErrorLog(
@@ -119,13 +142,81 @@ final class GatherServiceLive(db: DatabaseService) extends GatherService {
     _             <- db.saveWalletBalance(coins, walletBalance)
   } yield ()
 
-  /*
-  override def savePositionInfo(): ZIO[ByBitService with DataSource with SymbolsService, Throwable, Unit] = for {
-    bbService <- ZIO.service[ByBitService]
-    symbols <- ZIO.serviceWithZIO[SymbolsService](_.getSymbols())
-    _ <- ZIO.scoped(bbService.getPositionList(symbols)).provide(client)
-  } yield ()
+  /**
+   * Positions with size = 0 are not open (Bybit keeps them in the list right after closing), so they are skipped.
+   * Symbols unknown to data.symbol_futures are resolved (and inserted) before the snapshot is written.
    */
+  override def saveFuturesPositions(): ZIO[CommonGatherPosEnv, Throwable, Unit] = for {
+    bbService <- ZIO.service[ByBitService]
+    positions <- ZIO.scoped(bbService.getPositions()).provide(client)
+    open       = positions.result.list.filter(p => p.size.exists(_ > 0))
+    rows      <- ZIO.foreach(open)(toPositionInsert)
+    _         <- db.saveFuturesPositions(rows.flatten)
+  } yield ()
+
+  /** Skips a row with a side the DB check constraint would reject, so one bad record cannot fail the whole poll. */
+  private def toPositionInsert(position: PositionInfo): ZIO[DataSource, Throwable, Option[FuturesPositionInsert]] =
+    if (!validSide(position.side))
+      ZIO.logWarning(s"futures_position: skip ${position.symbol} with unknown side '${position.side}'").as(None)
+    else
+      db.resolveSymbolFuturesId(position.symbol).map { idSymbol =>
+        Some(
+          FuturesPositionInsert(
+            idSymbolFutures = idSymbol,
+            side = position.side,
+            size = position.size,
+            avgPrice = position.avgPrice,
+            markPrice = position.markPrice,
+            liqPrice = position.liqPrice,
+            positionValue = position.positionValue,
+            leverage = position.leverage,
+            positionIdx = position.positionIdx,
+            unrealisedPnl = position.unrealisedPnl,
+            curRealisedPnl = position.curRealisedPnl,
+            cumRealisedPnl = position.cumRealisedPnl,
+            takeProfit = position.takeProfit,
+            stopLoss = position.stopLoss
+          )
+        )
+      }
+
+  private def toClosedInsert(item: ClosedPnlItem): ZIO[DataSource, Throwable, Option[FuturesPositionClosedInsert]] =
+    if (!validSide(item.side))
+      ZIO.logWarning(s"futures_position_closed: skip ${item.symbol} with unknown side '${item.side}'").as(None)
+    else
+      db.resolveSymbolFuturesId(item.symbol).map { idSymbol =>
+        Some(
+          FuturesPositionClosedInsert(
+            idSymbolFutures = idSymbol,
+            side = item.side,
+            orderId = item.orderId,
+            orderPrice = item.orderPrice,
+            orderType = item.orderType,
+            execType = item.execType,
+            closedSize = item.closedSize,
+            cumEntryValue = item.cumEntryValue,
+            avgEntryPrice = item.avgEntryPrice,
+            cumExitValue = item.cumExitValue,
+            avgExitPrice = item.avgExitPrice,
+            closedPnl = item.closedPnl,
+            leverage = item.leverage,
+            createdTime = item.createdTime,
+            updatedTime = item.updatedTime
+          )
+        )
+      }
+
+  private def validSide(side: String): Boolean = side == "Buy" || side == "Sell"
+
+  override def saveFuturesPositionsClosed(lookbackMin: Int): ZIO[CommonGatherPosEnv, Throwable, Unit] = for {
+    bbService <- ZIO.service[ByBitService]
+    nowMs     <- Clock.currentTime(TimeUnit.MILLISECONDS)
+    closed    <- ZIO
+      .scoped(bbService.getClosedPnl(nowMs - lookbackMin.toLong * 60_000L, nowMs))
+      .provide(client)
+    rows      <- ZIO.foreach(closed.result.list)(toClosedInsert)
+    _         <- db.saveFuturesPositionsClosed(rows.flatten)
+  } yield ()
 
   override def saveErrorInDb(err: ErrorLog): ZIO[DataSource, SQLException, Unit] =
     for {

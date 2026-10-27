@@ -47,7 +47,10 @@ object Saver {
         .catchSome {
           ErrorHandlers.logPF(logLevelId.id, module, "saveWalletBalance")
         }
+        // Must be forked: the other collectors are started after this line in Gather.MainApp, and an unforked
+        // endless repeat would block them forever.
         .repeat(Schedule.spaced(5.seconds))
+        .fork
     )
   } yield ()
 

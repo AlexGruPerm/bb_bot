@@ -1,11 +1,13 @@
 package bybit
 
 import bybit_model.{
+  ApiRespClosedPnl,
   ApiRespCreateOrder,
   ApiRespFuturesData,
   ApiRespOpenInterest,
   ApiRespOrderBook,
   ApiRespOrderHistInfo,
+  ApiRespPositions,
   ApiRespWalletBalance,
   FuturesData,
   FuturesDataResult,
@@ -23,7 +25,7 @@ import conf.{ AppConfig, ByBitConfig }
 import services.{ PingPongService, SymbolsService }
 import zio.http.ChannelEvent.Read
 import zio.http.{ Body, Client, Handler, Headers, Request, Response, URL, WebSocketChannel, WebSocketFrame }
-import zio.{ durationInt, Clock, Fiber, Queue, RIO, Scope, Task, ZIO, ZLayer }
+import zio.{ durationInt, Clock, Fiber, Queue, RIO, Schedule, Scope, Task, ZIO, ZLayer }
 import zio.json.{ DecoderOps, EncoderOps }
 
 import java.time.Instant
@@ -44,6 +46,10 @@ trait ByBitService {
   def orderCreate(advice: TradeAdvice): ZIO[Scope with Client, Throwable, ApiRespCreateOrder]
   def getOrderHistInfo(orderId: OrderID): ZIO[Scope with Client, Throwable, ApiRespOrderHistInfo]
   def getFuturesData(): ZIO[Scope with Client, Throwable, FuturesDataResult]
+  // Open USDT perpetual positions (category=linear, settleCoin=USDT), one request.
+  def getPositions(): ZIO[Scope with Client, Throwable, ApiRespPositions]
+  // Closed-pnl records for [startMs, endMs]; follows nextPageCursor up to maxPages pages.
+  def getClosedPnl(startMs: Long, endMs: Long, maxPages: Int = 20): ZIO[Scope with Client, Throwable, ApiRespClosedPnl]
 }
 
 class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
@@ -62,6 +68,7 @@ class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
   private val bbUrl_Create_Order: String       = s"$bbUrl/v5/order/create"
   private val bbUrl_Order_History_Info: String = s"$bbUrl/v5/order/history"
   private val bbUrl_Position_info: String      = s"$bbUrl/v5/position/list"
+  private val bbUrl_Closed_Pnl: String         = s"$bbUrl/v5/position/closed-pnl"
 
   private def decodeUrl(url: String): ZIO[Any, IllegalArgumentException, URL] =
     ZIO.fromEither(URL.decode(url)).orElseFail(new IllegalArgumentException(s"Invalid URL: $url"))
@@ -276,6 +283,79 @@ class ByBitServiceImpl(config: ByBitConfig) extends ByBitService {
       .provideSomeLayer[KLineHandler with SymbolsService with PingPongService](
         Client.default ++ ZLayer(Queue.bounded[String](100))
       )
+
+  /**
+   * Bybit returns HTTP 200 even for failed private calls, reporting the failure in retCode. New private endpoints must
+   * check it explicitly instead of silently storing an empty result.
+   */
+  private def ensureRetCode(retCode: Int, retMsg: String, what: String): Task[Unit] =
+    if (retCode == 0) ZIO.unit
+    else ZIO.fail(new RuntimeException(s"$what failed: retCode=$retCode, retMsg=$retMsg"))
+
+  override def getPositions(): ZIO[Scope with Client, Throwable, ApiRespPositions] = for {
+    ts             <- ZIO.succeed(Instant.now().toEpochMilli.toString)
+    signUrl         = "category=linear&settleCoin=USDT"
+    bbSignature    <- getSignature(ts, signUrl)
+    url            <- decodeUrl(s"$bbUrl_Position_info?$signUrl")
+    headersWithSign = Headers(headerWithSignature(ts, bbSignature))
+    response       <- ZIO.serviceWithZIO[Client](_.request(Request.get(url).copy(headers = headersWithSign)))
+    src            <- response.body.asString
+    parsed         <- ZIO.attempt(src.fromJson[ApiRespPositions]).either
+    res            <- ApiDecode.unwrap(parsed)
+    _              <- ensureRetCode(res.retCode, res.retMsg, "getPositions")
+    _              <- ZIO
+      .logWarning("getPositions returned a full page, some positions may be missing")
+      .when(res.result.list.sizeIs >= 200)
+  } yield res
+
+  override def getClosedPnl(
+    startMs: Long,
+    endMs: Long,
+    maxPages: Int = 20
+  ): ZIO[Scope with Client, Throwable, ApiRespClosedPnl] = {
+    // Fetches a single page for the cursor (empty = first page).
+    def fetchPage(cursor: Option[String]): ZIO[Scope with Client, Throwable, ApiRespClosedPnl] = for {
+      ts               <- ZIO.succeed(Instant.now().toEpochMilli.toString)
+      signUrl           = s"category=linear&startTime=$startMs&endTime=$endMs&limit=100"
+      signUrlWithCursor = cursor.fold(signUrl)(c => s"$signUrl&cursor=$c")
+      bbSignature      <- getSignature(ts, signUrlWithCursor)
+      url              <- decodeUrl(s"$bbUrl_Closed_Pnl?$signUrlWithCursor")
+      headersWithSign   = Headers(headerWithSignature(ts, bbSignature))
+      response         <- ZIO.serviceWithZIO[Client](_.request(Request.get(url).copy(headers = headersWithSign)))
+      src              <- response.body.asString
+      parsed           <- ZIO.attempt(src.fromJson[ApiRespClosedPnl]).either
+      res              <- ApiDecode.unwrap(parsed)
+      _                <- ensureRetCode(res.retCode, res.retMsg, "getClosedPnl")
+    } yield res
+
+    // Walks the cursor chain, accumulating items; a single retry covers transient failures and Bybit rate limits.
+    def loop(
+      cursor: Option[String],
+      pages: Int,
+      acc: List[bybit_model.ClosedPnlItem]
+    ): ZIO[Scope with Client, Throwable, List[bybit_model.ClosedPnlItem]] =
+      if (pages >= maxPages) ZIO.succeed(acc)
+      else
+        fetchPage(cursor)
+          .retry(Schedule.spaced(1.second) && Schedule.recurs(1))
+          .flatMap { res =>
+            val all = acc ++ res.result.list
+            res.result.nextPageCursor.filter(_.nonEmpty) match {
+              case Some(next) => loop(Some(next), pages + 1, all)
+              case None       => ZIO.succeed(all)
+            }
+          }
+
+    loop(None, 0, Nil).map { items =>
+      ApiRespClosedPnl(
+        retCode = 0,
+        retMsg = "OK",
+        result = bybit_model.ClosedPnlResult(category = "linear", list = items, nextPageCursor = None),
+        retExtInfo = None,
+        time = None
+      )
+    }
+  }
 
   override def orderCreate(advice: TradeAdvice): ZIO[Scope with Client, Throwable, ApiRespCreateOrder] = for {
     ts                <- ZIO.succeed(Instant.now().toEpochMilli.toString)

@@ -9,11 +9,15 @@ case class ApiRespWalletBalance(
   retCode: Int,
   retMsg: String,
   result: WalletBalanceResult,
-  retExtInfo: Map[String, String],
-  time: Long
+  retExtInfo: Option[Map[String, String]],
+  time: Option[Long]
 )
 
-case class WalletBalanceResult(balance: WalletBalanceEntity)
+/**
+ * Wraps the account snapshot. Bybit may return an empty `result.list` (for example when the key has no Unified Trading
+ * Account), which is not an error worth failing on: the balance is then simply absent.
+ */
+case class WalletBalanceResult(balance: Option[WalletBalanceEntity])
 
 case class CommonWalletBalance(
   totalequity: Double,
@@ -91,16 +95,10 @@ object WalletBalanceResult {
     list: List[WalletBalanceEntity]
   )
 
+  // Never throw from a decoder: zio-json does not catch exceptions raised inside `map`, and the reported error becomes
+  // a confusing `...result.list(missing)` instead of the real reason. An empty list is mapped to None.
   implicit val decoder: JsonDecoder[WalletBalanceResult] =
-    DeriveJsonDecoder.gen[RawWalletBalanceResult].map { raw =>
-      val first = raw
-        .list
-        .headOption
-        .getOrElse(
-          throw new RuntimeException("WalletBalanceResult.list is empty")
-        )
-      WalletBalanceResult(first)
-    }
+    DeriveJsonDecoder.gen[RawWalletBalanceResult].map(raw => WalletBalanceResult(raw.list.headOption))
 
   implicit val encoder: JsonEncoder[WalletBalanceResult] = DeriveJsonEncoder.gen[WalletBalanceResult]
 }

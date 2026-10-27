@@ -3,6 +3,8 @@ package bybit_model
 /**
  * Raw log entry of one LLM call (data.llm_advice_source_response). `llmAdviceId` is None when the call failed or the
  * response could not be parsed into a valid advice, and Some(id) when it is linked to an inserted llm_advice row.
+ * `llmRequest` is the user content sent to the model, `llmResponse` is the full JSON body returned by the LLM API (kept
+ * for token usage analysis).
  */
 case class LlmAdviceRaw(
   llmAdviceId: Option[Int],

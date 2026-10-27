@@ -14,6 +14,9 @@ import bybit_model.{
   FuturesMetrics,
   FuturesMetricsLlmRow,
   FuturesMetricsMeta,
+  FuturesPositionClosedInsert,
+  FuturesPositionInsert,
+  FuturesPositionsConfig,
   KLine,
   KLineTopic,
   LlmPrompt,
@@ -59,6 +62,21 @@ trait DatabaseService {
   /** Returns the futures metrics meta configuration (data.futures_metrics_meta) by its id, if it exists. */
   def getFuturesMetricsMetaById(id: Int): ZIO[DataSource, SQLException, Option[FuturesMetricsMeta]]
   def getFuturesMetricsLlmSnapshot(metaId: Int): ZIO[DataSource, SQLException, List[FuturesMetricsLlmRow]]
+
+  /** Inserts one append-only snapshot row per open position (only positions with size > 0 are stored). */
+  def saveFuturesPositions(positions: List[FuturesPositionInsert]): ZIO[DataSource, SQLException, Unit]
+
+  /**
+   * Inserts closed positions, ignoring duplicates on (id_symbol_futures, order_id, updated_time). Symbols missing in
+   * data.symbol_futures are added first, so the FK never rejects a fresh Bybit symbol.
+   */
+  def saveFuturesPositionsClosed(items: List[FuturesPositionClosedInsert]): ZIO[DataSource, SQLException, Unit]
+
+  /** Resolves a data.symbol_futures id by symbol code, inserting the code when it is not in the dictionary yet. */
+  def resolveSymbolFuturesId(code: String): ZIO[DataSource, SQLException, Int]
+
+  /** Online configuration of the futures positions collector (data.futures_positions_config, single row). */
+  def getFuturesPositionsConfig: ZIO[DataSource, SQLException, Option[FuturesPositionsConfig]]
   def insertLlmAdvice(promptId: Int, advice: String, adviceText: String): ZIO[DataSource, SQLException, Int]
   def insertLlmAdviceSourceResponse(
     llmAdviceId: Option[Int],
